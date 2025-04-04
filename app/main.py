@@ -21,7 +21,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+from fastapi import FastAPI
+app = FastAPI()
 
+# Existing code …
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 # ✅ Create tables
 models.Base.metadata.create_all(bind=engine)
 
