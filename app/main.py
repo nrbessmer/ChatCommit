@@ -10,11 +10,12 @@ from app.routers import tag  # 👈 Add this line
 import hashlib
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from app import routes  # adjust if needed
 
 app = FastAPI()
+@app.get("/")
+async def root():
+    return {"message": "Hello world from main.py"}# Serve static frontend build
 
-# Serve static frontend build
 app.mount("/", StaticFiles(directory="frontend/out", html=True), name="frontend")
 
 # Include your backend API routes
