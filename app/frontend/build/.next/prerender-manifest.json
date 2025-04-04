@@ -54,7 +54,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/merge": {
+    "/commit": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -67,8 +67,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/merge",
-      "dataRoute": "/merge.rsc",
+      "srcRoute": "/commit",
+      "dataRoute": "/commit.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -102,30 +102,6 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/commit": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/commit",
-      "dataRoute": "/commit.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
     "/branches": {
       "experimentalBypassFor": [
         {
@@ -149,13 +125,37 @@
         "x-next-revalidated-tags",
         "x-next-revalidate-tag-token"
       ]
+    },
+    "/merge": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/merge",
+      "dataRoute": "/merge.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
     }
   },
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "2f4957e16d48dc75173a981e5889c7e3",
-    "previewModeSigningKey": "0a5e183773ad5420edbfdf47aaf1535891d7f6b617e3a7ac5bc9ccee4169ddee",
-    "previewModeEncryptionKey": "a6a227bcc3d4bc51dcedec304c117e594f7c8c845206b04a6011495966c1fee6"
+    "previewModeId": "b0fab3c8772aa6749cfd5a92f8f7e426",
+    "previewModeSigningKey": "8cb0b591263e7f887f8983ad4a05df8901f3abf00cefc570d3080bc8ca4057fa",
+    "previewModeEncryptionKey": "f4f774df7f92e219201a4905a7c036f9ff9e82ddd7701abf545282fcb83a1f15"
   }
 }

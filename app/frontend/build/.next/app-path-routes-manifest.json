@@ -1,10 +1,10 @@
 {
-  "/favicon.ico/route": "/favicon.ico",
   "/_not-found/page": "/_not-found",
+  "/favicon.ico/route": "/favicon.ico",
   "/commit/[id]/page": "/commit/[id]",
   "/branches/page": "/branches",
-  "/merge/page": "/merge",
   "/commit/page": "/commit",
+  "/merge/page": "/merge",
   "/branches/[id]/page": "/branches/[id]",
   "/chat/page": "/chat",
   "/page": "/"

@@ -5,39 +5,36 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import hashlib
 
-from .database import engine, SessionLocal
+from .database import SessionLocal
 from . import models
 from .models import Commit, Branch
-from .routers import commit, branch, rollback, tag  # ✅ All routers here
+from .routers import commit, branch, rollback, tag
 
-# ✅ Initialize FastAPI app
 app = FastAPI()
 
-# ✅ Serve frontend (static files)
+# Serve static frontend build (if you have `frontend/out`)
 app.mount("/", StaticFiles(directory="frontend/out", html=True), name="frontend")
 
-# ✅ CORS setup
+# CORS config
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://chatcommit.fly.dev",
-        "chrome-extension://obciponildojcfgfajioeomjkihdadbc"
+        "chrome-extension://obciponildojcfgfajioeomjkihdadbc",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ Health and root endpoints
 @app.get("/")
 async def root():
-    return {"message": "Welcome to ChatCommit!"}
+    return {"message": "Welcome to ChatCommit from main.py!"}
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-# ✅ Initialize database if empty
 def initialize_default_branch():
     db: Session = SessionLocal()
     try:
@@ -46,7 +43,9 @@ def initialize_default_branch():
 
             timestamp = datetime.now(timezone.utc).isoformat()
             commit_message = "Initial commit (auto-generated)"
-            commit_hash = hashlib.sha1(f"{timestamp}-{commit_message}".encode()).hexdigest()
+            commit_hash = hashlib.sha1(
+                f"{timestamp}-{commit_message}".encode()
+            ).hexdigest()
 
             initial_commit = Commit(
                 commit_hash=commit_hash,
@@ -55,7 +54,6 @@ def initialize_default_branch():
                 created_at=datetime.now(timezone.utc),
                 branch_id=1
             )
-
             db.add(initial_commit)
             db.commit()
             db.refresh(initial_commit)
@@ -71,12 +69,11 @@ def initialize_default_branch():
     finally:
         db.close()
 
-# ✅ Run init on startup
 @app.on_event("startup")
 def startup_event():
     initialize_default_branch()
 
-# ✅ Include routers
+# Routers from app/routers/
 app.include_router(commit.router, prefix="/commit", tags=["commit"])
 app.include_router(branch.router, prefix="/branch", tags=["branch"])
 app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])

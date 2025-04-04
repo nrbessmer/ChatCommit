@@ -33,14 +33,6 @@
       "static/chunks/874-39b4efccf57c932c.js",
       "static/chunks/app/branches/page-87b45dcce9c4bbaf.js"
     ],
-    "/merge/page": [
-      "static/chunks/webpack-db3214c5c58110e1.js",
-      "static/chunks/4bd1b696-704dc55da575ac8d.js",
-      "static/chunks/684-dd692206fb1b2990.js",
-      "static/chunks/main-app-57f1d96c2ca63e4f.js",
-      "static/chunks/464-fa54c2978af1e7bb.js",
-      "static/chunks/app/merge/page-8d32f664895d2fba.js"
-    ],
     "/commit/page": [
       "static/chunks/webpack-db3214c5c58110e1.js",
       "static/chunks/4bd1b696-704dc55da575ac8d.js",
@@ -48,6 +40,14 @@
       "static/chunks/main-app-57f1d96c2ca63e4f.js",
       "static/chunks/464-fa54c2978af1e7bb.js",
       "static/chunks/app/commit/page-971ec4efccc299aa.js"
+    ],
+    "/merge/page": [
+      "static/chunks/webpack-db3214c5c58110e1.js",
+      "static/chunks/4bd1b696-704dc55da575ac8d.js",
+      "static/chunks/684-dd692206fb1b2990.js",
+      "static/chunks/main-app-57f1d96c2ca63e4f.js",
+      "static/chunks/464-fa54c2978af1e7bb.js",
+      "static/chunks/app/merge/page-8d32f664895d2fba.js"
     ],
     "/branches/[id]/page": [
       "static/chunks/webpack-db3214c5c58110e1.js",
