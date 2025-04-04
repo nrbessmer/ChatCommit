@@ -36,3 +36,7 @@ app = "/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000"
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+  
+ [mounts]
+  source = "chatcommit_data"
+  destination = "/data" 
