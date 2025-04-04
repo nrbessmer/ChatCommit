@@ -6,9 +6,9 @@ COPY pyproject.toml ./
 RUN python -m venv .venv && .venv/bin/pip install .
 
 COPY . ./
+# Correct Dockerfile snippet
+COPY frontend/.next/ ./frontend/.next/
 
-# Copy Next.js production build
-COPY app/frontend/.next/ ./frontend/.next/
 
 EXPOSE 8000
 
