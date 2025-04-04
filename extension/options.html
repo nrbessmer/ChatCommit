@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>ChatCommit Options</title>
+  <style>
+    body {
+      background: #111;
+      color: white;
+      font-family: Tahoma, sans-serif;
+      padding: 16px;
+      width: 480px;
+      height: 500px;
+    }
+    h1 {
+      color: orange;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+      color: #00ff99;
+    }
+    input {
+      width: 100%;
+      background: #222;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    button {
+      width: 100%;
+      background: #22c55e;
+      color: #000;
+      padding: 10px;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      margin-top: 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    #status {
+      margin-top: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>ChatCommit Options</h1>
+
+  <label>OpenAI API Key</label>
+  <input id="openai" type="text" placeholder="sk-..." />
+
+  <label>Backend Repo URL</label>
+  <input id="repoUrl" type="text" placeholder="https://chatcommit.fly.dev:8000" />
+
+  <label>Repo Hook (optional)</label>
+  <input id="repoHook" type="text" placeholder="(not used yet)" />
+
+  <button id="saveBtn">Save</button>
+  <div id="status"></div>
+
+  <script>
+    const fields = ["openai", "repoUrl", "repoHook"];
+    window.onload = () => {
+      chrome.storage.local.get(fields, (res) => {
+        document.getElementById("openai").value = res.openai || "";
+        document.getElementById("repoUrl").value = res.repoUrl || "https://chatcommit.fly.dev:8000";
+        document.getElementById("repoHook").value = res.repoHook || "";
+      });
+    };
+
+    document.getElementById("saveBtn").onclick = () => {
+      const openai = document.getElementById("openai").value.trim();
+      const repoUrl = document.getElementById("repoUrl").value.trim();
+      const repoHook = document.getElementById("repoHook").value.trim();
+
+      chrome.storage.local.set({ openai, repoUrl, repoHook }, () => {
+        document.getElementById("status").textContent = "✅ Settings saved!";
+      });
+    };
+  </script>
+</body>
+</html>

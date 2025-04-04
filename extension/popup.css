@@ -1,0 +1,136 @@
+/* Larger, resizable panel */
+body {
+  margin: 0;
+  background: linear-gradient(135deg, #222, #111);
+  color: #fff;
+  font-family: Tahoma, sans-serif;
+  width: 700px;
+  height: 900px;
+  overflow: hidden; /* attempt no scroll, user may forcibly resize if the browser allows */
+}
+
+.container {
+  padding: 16px;
+}
+
+/* Smaller logo */
+.logo {
+  width: 60px;
+  display: block;
+  margin: 0 auto 8px;
+}
+
+/* Title styling */
+.header {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+  margin: 4px 0;
+}
+
+/* Sub-styles for the ChatCommit brand text */
+.chat {
+  color: #fff;
+}
+
+.commit {
+  color: orange;
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 11px;
+  color: gray;
+  margin-bottom: 12px;
+}
+
+/* Label text in bright green */
+label {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  font-weight: bold;
+  color: #00ff99;
+}
+
+/* Inputs + textareas */
+select,
+textarea,
+input[type="text"] {
+  width: 100%;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px;
+  background-color: #222;
+  color: #fff;
+  font-size: 14px;
+  font-family: Tahoma, sans-serif;
+}
+
+/* Conversation area bigger, purple scrollbar */
+textarea#context-area {
+  resize: vertical;
+  height: 250px;
+  max-height: 400px;
+  overflow: auto;
+  scrollbar-color: purple #222;
+}
+
+/* Buttons with icons + smaller styling */
+button {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: Tahoma, sans-serif;
+}
+
+/* Primary commit button */
+.primary {
+  background-color: #22c55e;
+  color: black;
+}
+
+/* Blue button style */
+.blue {
+  background-color: #2962ff;
+  color: white;
+}
+
+/* Purple style used for e.g. copy context */
+.purple {
+  background-color: purple;
+  color: white;
+}
+
+/* Save in settings */
+.green {
+  background-color: #22c55e;
+  color: black;
+}
+
+/* MISC */
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.button-group button {
+  flex: 1 1 45%;
+  background-color: #333;
+  color: white;
+}
+
+/* Status message */
+#status-message {
+  font-size: 12px;
+  margin-top: 8px;
+  color: orange;
+  text-align: center;
+}
