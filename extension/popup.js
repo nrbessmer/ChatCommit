@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function loadSettings() {
     chrome.storage.local.get(["openai", "repoUrl", "repoHook"], (res) => {
       openaiKeyField.value = res.openai || "";
-      backendUrlField.value = res.repoUrl || "https://chatcommit.fly.dev:8000";
+      backendUrlField.value = res.repoUrl || "https://chatcommit.fly.dev";
       repoHookField.value = res.repoHook || "";
     });
   }
@@ -152,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Commit logic
   commitBtn.onclick = async () => {
     chrome.storage.local.get(["repoUrl"], async (res) => {
-      const base = res.repoUrl || "https://chatcommit.fly.dev:8000";
+      const base = res.repoUrl || "https://chatcommit.fly.dev";
       const commitMsg = messageInput.value.trim();
       let contextObj;
       try {
@@ -209,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const newName = prompt("Enter a name for the new branch:");
     if (!newName) return;
     chrome.storage.local.get(["repoUrl"], async (res) => {
-      const base = res.repoUrl || "https://chatcommit.fly.dev:8000";
+      const base = res.repoUrl || "https://chatcommit.fly.dev";
       try {
         const branchRes = await fetch(`${base}/branch/`, {
           method: "POST",
@@ -230,12 +230,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // View branches (temporary link to localhost:3000/branches)
   viewBranchesBtn.onclick = () => {
-    chrome.tabs.create({ url: "https://chatcommit.fly.dev:3000/branches" });
+    chrome.tabs.create({ url: "https://chatcommit.fly.dev/branch" });
   };
 
   // On load: load settings -> load branches -> scrape chat
   chrome.storage.local.get(["repoUrl"], (cfg) => {
-    const base = cfg.repoUrl || "https://chatcommit.fly.dev:8000";
+    const base = cfg.repoUrl || "https://chatcommit.fly.dev";
     loadBranches(base);
     scrapeChat(base);
   });
