@@ -1,22 +1,33 @@
-# Base Python image
-FROM python:3.11-slim
+# ------------ STAGE 1: Build Frontend ------------
+FROM node:20-alpine AS frontend-build
 
-# Set working directory
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+RUN npm install --legacy-peer-deps
+
+COPY frontend ./
+RUN npm run build
+
+# ------------ STAGE 2: Backend + Static Bundle ------------
+FROM python:3.11-slim AS final
+
 WORKDIR /app
 
-# Copy backend requirements and install
+# Python dependencies
 COPY pyproject.toml ./
 RUN python -m venv .venv && .venv/bin/pip install .
 
-# Copy backend source code
+# Copy backend source
 COPY . ./
 
-# Copy prebuilt frontend files (run `npm run build` first!)
-COPY frontend/.next/ ./frontend/.next/
-COPY frontend/public/ ./frontend/public/
+# Copy frontend build artifacts from stage 1
+COPY --from=frontend-build /frontend/.next /app/frontend/.next
+COPY --from=frontend-build /frontend/public /app/frontend/public
+COPY --from=frontend-build /frontend/app /app/frontend/app
 
 # Expose FastAPI port
 EXPOSE 8000
 
-# Run FastAPI app via Uvicorn
+# Launch FastAPI app
 CMD ["/app/.venv/bin/uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

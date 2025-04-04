@@ -10,11 +10,7 @@ from app.routers import tag  # 👈 Add this line
 import hashlib
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
-app = FastAPI()
-
-# ✅ Mount frontend
-app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
+app.mount("/", StaticFiles(directory="frontend/out", html=True), name="frontend")
 
 from fastapi.middleware.cors import CORSMiddleware
 
