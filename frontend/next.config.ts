@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // No static export — keep server rendering
+  // remove output: 'export' — or just don't include it at all
 };
 
-export default nextConfig;
+module.exports = nextConfig;
