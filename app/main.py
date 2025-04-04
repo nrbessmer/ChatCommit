@@ -1,28 +1,22 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+import hashlib
+
 from .database import engine, SessionLocal
 from . import models
 from .models import Commit, Branch
-from .routers import commit, branch, rollback
-from datetime import datetime, timezone
-from app.routers import tag  # 👈 Add this line
-import hashlib
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from .routers import commit, branch, rollback, tag  # ✅ All routers here
 
+# ✅ Initialize FastAPI app
 app = FastAPI()
-@app.get("/")
-async def root():
-    return {"message": "Hello world from main.py"}# Serve static frontend build
 
+# ✅ Serve frontend (static files)
 app.mount("/", StaticFiles(directory="frontend/out", html=True), name="frontend")
 
-# Include your backend API routes
-app.include_router(routes.router)
-
-from fastapi.middleware.cors import CORSMiddleware
-
+# ✅ CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -34,21 +28,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi import FastAPI
-app = FastAPI()
-
-# Existing code …
-
+# ✅ Health and root endpoints
 @app.get("/")
-def read_root():
+async def root():
     return {"message": "Welcome to ChatCommit!"}
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-
-# ✅ Auto-create main branch + initial commit if empty
+# ✅ Initialize database if empty
 def initialize_default_branch():
     db: Session = SessionLocal()
     try:
@@ -60,12 +49,12 @@ def initialize_default_branch():
             commit_hash = hashlib.sha1(f"{timestamp}-{commit_message}".encode()).hexdigest()
 
             initial_commit = Commit(
-            commit_hash=commit_hash,
-            commit_message=commit_message,
-            conversation_context={"messages": ["Auto-init by ChatCommit"]},
-            created_at=datetime.now(timezone.utc),
-            branch_id=1  # ✅ Link it to the soon-to-be 'main' branch
-)
+                commit_hash=commit_hash,
+                commit_message=commit_message,
+                conversation_context={"messages": ["Auto-init by ChatCommit"]},
+                created_at=datetime.now(timezone.utc),
+                branch_id=1
+            )
 
             db.add(initial_commit)
             db.commit()
@@ -86,9 +75,9 @@ def initialize_default_branch():
 @app.on_event("startup")
 def startup_event():
     initialize_default_branch()
-from .routers import commit, branch, rollback, tag  # <-- ✅ Make sure 'tag' is included
 
+# ✅ Include routers
 app.include_router(commit.router, prefix="/commit", tags=["commit"])
 app.include_router(branch.router, prefix="/branch", tags=["branch"])
 app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
-app.include_router(tag.router, prefix="/tag", tags=["tag"])  # <-- ✅ This line must be here
+app.include_router(tag.router, prefix="/tag", tags=["tag"])
