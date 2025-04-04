@@ -8,6 +8,11 @@ from .routers import commit, branch, rollback
 from datetime import datetime, timezone
 from app.routers import tag  # 👈 Add this line
 import hashlib
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# Mount the production build of your frontend. Adjust the directory as needed.
+app.mount("/", StaticFiles(directory="frontend/build", html=True), name="frontend")
 
 # ✅ Create the app
 app = FastAPI()
