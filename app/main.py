@@ -26,11 +26,14 @@ app = FastAPI()
 
 # Existing code …
 
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to ChatCommit!"}
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
-# ✅ Create tables
-models.Base.metadata.create_all(bind=engine)
+
 
 # ✅ Auto-create main branch + initial commit if empty
 def initialize_default_branch():
