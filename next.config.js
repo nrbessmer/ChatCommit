@@ -1,7 +1,9 @@
+// frontend/next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // NO "output" property here
-};
+  reactStrictMode: true,
+  // REMOVE this if present:
+  // output: 'export',
+}
 
 module.exports = nextConfig;
-
