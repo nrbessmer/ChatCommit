@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // remove output: 'export' — or just don't include it at all
+  // Remove the static export setting:
+  // output: 'export',
+  // Optionally, leave other settings intact.
 };
 
-module.exports = nextConfig;
+export default nextConfig;

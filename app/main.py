@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import hashlib
@@ -8,15 +7,12 @@ import hashlib
 from .database import SessionLocal
 from . import models
 from .models import Commit, Branch
-from .routers import commit, branch, rollback, tag
+from .routers import commit, branch, rollback, tag  # All routers
 
+# Initialize FastAPI app
 app = FastAPI()
 
-# Serve static frontend build (if you have `frontend/out`)
-app.mount("/ui", StaticFiles(directory="frontend/out", html=True), name="frontend")
-
-
-# CORS config
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -28,6 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Health and root endpoints
 @app.get("/")
 async def root():
     return {"message": "Welcome to ChatCommit from main.py!"}
@@ -36,6 +33,7 @@ async def root():
 def health():
     return {"status": "ok"}
 
+# Database initialization (auto-create a default branch if needed)
 def initialize_default_branch():
     db: Session = SessionLocal()
     try:
@@ -44,9 +42,7 @@ def initialize_default_branch():
 
             timestamp = datetime.now(timezone.utc).isoformat()
             commit_message = "Initial commit (auto-generated)"
-            commit_hash = hashlib.sha1(
-                f"{timestamp}-{commit_message}".encode()
-            ).hexdigest()
+            commit_hash = hashlib.sha1(f"{timestamp}-{commit_message}".encode()).hexdigest()
 
             initial_commit = Commit(
                 commit_hash=commit_hash,
@@ -74,8 +70,8 @@ def initialize_default_branch():
 def startup_event():
     initialize_default_branch()
 
-# Routers from app/routers/
-app.include_router(commit.router, prefix="/commit", tags=["commit"])
-app.include_router(branch.router, prefix="/branch", tags=["branch"])
-app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
-app.include_router(tag.router, prefix="/tag", tags=["tag"])
+# Include API routers under the /api prefix (update your extension accordingly)
+app.include_router(commit.router, prefix="/api/commit", tags=["commit"])
+app.include_router(branch.router, prefix="/api/branch", tags=["branch"])
+app.include_router(rollback.router, prefix="/api/rollback", tags=["rollback"])
+app.include_router(tag.router, prefix="/api/tag", tags=["tag"])
