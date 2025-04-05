@@ -230,8 +230,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // View branches (temporary link to localhost:3000/branches)
   viewBranchesBtn.onclick = () => {
-    chrome.tabs.create({ url: "https://chatcommit.fly.dev/branch" });
-  };
+  chrome.tabs.create({ url: "https://chat-commit.vercel.app/branches" });
+};
+
 
   // On load: load settings -> load branches -> scrape chat
   chrome.storage.local.get(["repoUrl"], (cfg) => {
