@@ -1,5 +1,9 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",                        // ✅ Crucial for `@` to work
+    "paths": {
+      "@/*": ["./*"]                       // ✅ Maps `@/components/...` etc.
+    },
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -13,14 +17,8 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "baseUrl": ".",                        // ✅ ADD THIS LINE
-    "paths": {
-      "@/*": ["./*"]
-    },
     "plugins": [
-      {
-        "name": "next"
-      }
+      { "name": "next" }
     ]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
