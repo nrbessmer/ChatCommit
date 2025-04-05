@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
-import CommitCard from '@/components/CommitCard';
+import CommitCard from '@/components/CommitCard'; // ✅ match casing
 
 interface Commit {
   id: number;

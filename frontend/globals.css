@@ -2,4 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* You can add custom styles here if needed */
+body {
+  @nest h1 {
+    color: red;
+  }
+}

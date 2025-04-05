@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
-import TagForm from '@/components/TagForm';
+import TagForm from '@/components/TagForm'; // ✅ match casing
+
 
 interface CommitData {
   id: number;

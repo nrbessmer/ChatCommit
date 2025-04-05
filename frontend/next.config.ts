@@ -1,8 +1,10 @@
-/** @type {import('next').NextConfig} */
+import path from 'path';
+
 const nextConfig = {
-  // Remove the static export setting:
-  // output: 'export',
-  // Optionally, leave other settings intact.
+  webpack: (config: any) => {
+    config.resolve.alias['@'] = path.resolve(__dirname);
+    return config;
+  },
 };
 
 export default nextConfig;
