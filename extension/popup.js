@@ -133,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Refresh Chat
   refreshBtn.onclick = () => {
     chrome.storage.local.get(["repoUrl"], (res) => {
-      const base = res.repoUrl || "https://chatcommit.fly.dev:8000";
+      const base = res.repoUrl || "https://chatcommit.fly.dev";
       scrapeChat(base);
     });
   };
