@@ -13,7 +13,7 @@ from .routers import commit, branch, rollback, tag
 app = FastAPI()
 
 # Serve static frontend build (if you have `frontend/out`)
-app.mount("/", StaticFiles(directory="frontend/out", html=True), name="frontend")
+#app.mount("/", StaticFiles(directory="frontend/out", html=True), name="frontend")
 
 # CORS config
 app.add_middleware(
