@@ -16,7 +16,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://chatcommit.fly.dev",
-        "https://your-vercel-frontend.vercel.app",  # 👈 add Vercel URL
+        "https://chat-commit-git-main-nicholas-bessmers-projects.vercel.app",
         "chrome-extension://obciponildojcfgfajioeomjkihdadbc",
     ],
     allow_credentials=True,
