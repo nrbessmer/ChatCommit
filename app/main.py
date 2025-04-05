@@ -74,7 +74,8 @@ def startup_event():
     initialize_default_branch()
 
 # Routers from app/routers/
-app.include_router(commit.router, prefix="/commit", tags=["commit"])
-app.include_router(branch.router, prefix="/branch", tags=["branch"])
-app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
-app.include_router(tag.router, prefix="/tag", tags=["tag"])
+app.include_router(commit.router, prefix="/api/commit", tags=["commit"])
+app.include_router(branch.router, prefix="/api/branch", tags=["branch"])
+app.include_router(rollback.router, prefix="/api/rollback", tags=["rollback"])
+app.include_router(tag.router, prefix="/api/tag", tags=["tag"])
+

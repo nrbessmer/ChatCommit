@@ -1,7 +1,7 @@
 // File: frontend/lib/api.ts
 import axios from 'axios';
 
-const API_BASE = "https://chatcommit.fly.dev";
+const API_BASE = "https://chatcommit.fly.dev/api";
 
 // FIXED: Accepts branchId
 export const fetchCommits = async (branchId: number) => {

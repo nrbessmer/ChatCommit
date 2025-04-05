@@ -24,7 +24,7 @@ export default function MergePage() {
   const handleMerge = async () => {
     try {
       const res = await axios.post(
-        `https://chatcommit.fly.dev:8000/merge`,
+        `https://chatcommit.fly.dev/api//merge`,
         {
           source_branch_id: parseInt(sourceBranch),
           target_branch_id: parseInt(targetBranch),

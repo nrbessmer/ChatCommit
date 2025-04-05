@@ -19,7 +19,7 @@ export default function CommitFormPage() {
         commit_message: commitMessage,
         conversation_context: JSON.parse(context),
       };
-      await axios.post('https://chatcommit.fly.dev/commit/', payload);
+      await axios.post('https://chatcommit.fly.dev/api/commit/', payload);
       router.push('/');
     } catch (error) {
       console.error('Failed to submit commit:', error);

@@ -15,7 +15,7 @@ export default function BranchesPage() {
 
   useEffect(() => {
     axios
-      .get<Branch[]>('https://chatcommit.fly.dev/branch/')
+      .get<Branch[]>('https://chatcommit.fly.dev/api//branch/')
       .then(res => setBranches(res.data))
       .catch(err => console.error('Failed to load branches:', err));
   }, []);
