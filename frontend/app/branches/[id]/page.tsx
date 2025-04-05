@@ -29,11 +29,11 @@ export default function BranchDetailPage() {
   useEffect(() => {
     if (!branchId) return;
 
-    axios.get<Branch>(`https://chatcommit.fly.dev/api//branch/${branchId}`)
+    axios.get<Branch>(`https://chatcommit.fly.dev/branch/${branchId}`)
       .then(res => setBranch(res.data))
       .catch(console.error);
 
-    axios.get<Commit[]>(`https://chatcommit.fly.dev/api//branch/${branchId}/commits`)
+    axios.get<Commit[]>(`https://chatcommit.fly.dev/branch/${branchId}/commits`)
       .then(res => setCommits(res.data))
       .catch(console.error);
   }, [branchId]);

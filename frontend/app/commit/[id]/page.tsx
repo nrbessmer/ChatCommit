@@ -36,7 +36,7 @@ export default function CommitDetailPage() {
     }
 
     axios
-      .get(`https://chatcommit.fly.dev/api/commit/${commitId}`)
+      .get(`https://chatcommit.fly.dev/commit/${commitId}`)
       .then((res) => setCommit(res.data))
       .catch((err) => console.error('Error fetching commit:', err));
 
