@@ -6,9 +6,11 @@ from datetime import datetime, timezone
 import hashlib
 import os
 
-from .database import SessionLocal
-from .models import Commit, Branch
+from .database import SessionLocal, engine
+from .models import Base, Commit, Branch  # <-- Add Base
 from .routers import commit, branch, rollback, tag
+
+app = FastAPI(redirect_slashes=False)
 
 app = FastAPI()
 
@@ -32,8 +34,24 @@ def root():
 def health():
     return {"status": "ok"}
 
+from .database import SessionLocal, engine  # include engine
+from .models import Base, Commit, Branch    # include Base
+
+from .database import SessionLocal, engine
+from .models import Base, Commit, Branch
+
+from sqlalchemy import text
+
 def initialize_default_branch():
+    Base.metadata.create_all(bind=engine)
     db: Session = SessionLocal()
+
+    result = db.execute(text("SELECT name FROM sqlite_master WHERE type='table' AND name='branches'"))
+    if not result.fetchone():
+        print("⚠️ Branches table does not exist, skipping init.")
+        db.close()
+        return
+
     if db.query(Branch).count() == 0:
         commit_hash = hashlib.sha1(b"init").hexdigest()
         init_commit = Commit(
@@ -50,14 +68,27 @@ def initialize_default_branch():
         main = Branch(name="main", current_commit_id=init_commit.id)
         db.add(main)
         db.commit()
-    db.close()
 
+    db.close()
+    
 @app.on_event("startup")
 def on_startup():
-    initialize_default_branch()
+    print("🚀 Ensuring DB schema...")
+    Base.metadata.create_all(bind=engine)
 
-# ✅ API endpoints under /api/*
-app.include_router(commit.router, prefix="/api/commit", tags=["commit"])
-app.include_router(branch.router, prefix="/api/branch", tags=["branch"])
-app.include_router(rollback.router, prefix="/api/rollback", tags=["rollback"])
-app.include_router(tag.router, prefix="/api/tag", tags=["tag"])
+    # 🔁 Instead of querying the DB immediately,
+    # just do it inside a try/except block
+    try:
+        print("⚙️ Initializing default branch...")
+        initialize_default_branch()
+    except Exception as e:
+        print(f"⚠️ Skipping init branch due to error: {e}")
+
+
+# ✅ API endpoints at root level
+app.include_router(branch.router, prefix="/branch")
+app.include_router(commit.router, prefix="/commit")
+app.include_router(rollback.router, prefix="/rollback")
+app.include_router(tag.router, prefix="/tag")
+
+

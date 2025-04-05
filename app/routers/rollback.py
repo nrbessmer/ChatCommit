@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Branch, Commit
-
+from typing import List
 router = APIRouter()
 
 @router.post("/{branch_id}/{commit_id}")

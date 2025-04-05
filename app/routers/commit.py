@@ -8,7 +8,7 @@ from ..models import Commit, Branch
 from ..schemas import CommitCreate, CommitResponse
 import hashlib
 from datetime import datetime, timezone
-
+from typing import List
 router = APIRouter()
 @router.get("/", response_model=list[CommitResponse])
 def list_commits(db: Session = Depends(get_db)):
@@ -57,3 +57,7 @@ def get_commit(commit_id: int, db: Session = Depends(get_db)):
     if not commit:
         raise HTTPException(status_code=404, detail="Commit not found")
     return commit
+    
+@router.get("/", response_model=List[CommitResponse])
+def list_commits(db: Session = Depends(get_db)):
+    return db.query(Commit).order_by(Commit.created_at.desc()).all()

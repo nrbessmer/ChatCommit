@@ -4,7 +4,8 @@ from typing import Optional, List
 from datetime import datetime
 
 class ConversationContext(BaseModel):
-    messages: List[str]
+    messages: Optional[List[str]] = []
+
 
 class CommitCreate(BaseModel):
     commit_message: str

@@ -8,9 +8,10 @@ router = APIRouter()
 
 @router.post("/", response_model=BranchResponse)
 def create_branch(branch: BranchCreate, db: Session = Depends(get_db)):
-    base_commit = db.query(Commit).filter(Commit.id == branch.base_commit_id).first()
-    if not base_commit:
-        raise HTTPException(status_code=404, detail="Base commit not found")
+    if branch.base_commit_id is not None:
+        base_commit = db.query(Commit).filter(Commit.id == branch.base_commit_id).first()
+        if not base_commit:
+            raise HTTPException(status_code=404, detail="Base commit not found")
 
     db_branch = Branch(
         name=branch.name,
