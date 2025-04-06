@@ -39,10 +39,9 @@ export default function CommitDetailPage() {
   const copyContext = () => {
     if (!commit?.conversation_context) return;
     const text = JSON.stringify(commit.conversation_context, null, 2);
-    navigator.clipboard.writeText(text).then(
-      () => alert('Conversation context copied!'),
-      () => alert('Failed to copy context.')
-    );
+    navigator.clipboard.writeText(text)
+      .then(() => alert('Conversation context copied!'))
+      .catch(() => alert('Failed to copy context.'));
   };
 
   if (loading) return <p className="p-6 bg-gray-900 text-gray-300">Loading commit…</p>;
@@ -61,11 +60,25 @@ export default function CommitDetailPage() {
           <div className="mt-6">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-semibold text-white">Conversation Context</h3>
-              <button onClick={copyContext} className="p-1 hover:text-blue-400">
-                {/* Copy Icon: two overlapping documents */}
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h6m4 0h2a2 2 0 012 2v8a2 2 0 01-2 2h-2M8 12h6m-6 4h6" />
+              <button
+                onClick={copyContext}
+                aria-label="Copy conversation context"
+                className="p-1 hover:text-blue-400"
+              >
+                {/* Copy Icon */}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-gray-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h6m4 0h2a2 2 0 012 2v8a2 2 0 01-2 2h-2M8 12h6m-6 4h6"
+                  />
                 </svg>
               </button>
             </div>
