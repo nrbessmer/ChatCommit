@@ -36,26 +36,24 @@ export default function CommitDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <p className="p-6 text-gray-300 bg-gray-900">Loading commit…</p>;
-  if (error)   return <p className="p-6 text-red-400 bg-gray-900">{error}</p>;
-  if (!commit) return <p className="p-6 text-gray-300 bg-gray-900">Commit not found.</p>;
+  if (loading) return <p className="p-6 bg-gray-900 text-gray-300">Loading commit…</p>;
+  if (error)   return <p className="p-6 bg-gray-900 text-red-500">{error}</p>;
+  if (!commit) return <p className="p-6 bg-gray-900 text-gray-300">Commit not found.</p>;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 p-6">
-      <div className="max-w-3xl mx-auto bg-gray-800 rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-bold mb-4 text-white">Commit Details</h2>
+    <div className="min-h-screen bg-gray-900 p-6">
+      <div className="max-w-3xl mx-auto bg-gray-800 p-6 rounded-lg shadow-xl text-gray-100">
+        <h2 className="text-2xl font-bold mb-4">Commit Details</h2>
 
         <CommitCard {...commit} hideView />
 
         {/* Conversation Context */}
         {commit.conversation_context?.messages && (
           <div className="mt-6">
-            <h3 className="text-lg font-semibold mb-2 text-white">Conversation Context</h3>
-            <div className="bg-gray-700 p-4 rounded overflow-y-auto max-h-64 text-gray-200 font-mono text-sm">
-              {commit.conversation_context.messages.map((msg, idx) => (
-                <p key={idx} className="mb-2">
-                  {msg}
-                </p>
+            <h3 className="text-lg font-semibold text-white mb-2">Conversation Context</h3>
+            <div className="bg-gray-700 p-4 rounded max-h-64 overflow-y-auto text-gray-200 font-mono text-sm">
+              {commit.conversation_context.messages.map((msg, i) => (
+                <p key={i} className="mb-2">{msg}</p>
               ))}
             </div>
           </div>
@@ -71,4 +69,6 @@ export default function CommitDetailPage() {
           </button>
         )}
       </div>
-    </div
+    </div>
+  );
+}
