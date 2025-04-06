@@ -1,4 +1,3 @@
-cat > app/commit/page.tsx << 'EOF'
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -26,7 +25,7 @@ export default function CommitListPage() {
       <h2 className="text-2xl font-bold mb-4">All Commits</h2>
       {commits.map(c => (
         <div key={c.id} className="mb-4">
-          <Link href={`/commit/${c.id}`}>
+          <Link href={`/commit/${c.id}`} className="text-blue-400 hover:underline">
             {c.commit_hash.slice(0,8)} - {c.commit_message}
           </Link>
         </div>
@@ -34,4 +33,3 @@ export default function CommitListPage() {
     </div>
   );
 }
-EOF

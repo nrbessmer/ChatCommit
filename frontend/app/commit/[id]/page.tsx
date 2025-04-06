@@ -15,19 +15,16 @@ interface Commit {
 
 export default function CommitDetailPage() {
   const { id } = useParams() as { id: string };
+  const router = useRouter();
   const [commit, setCommit] = useState<Commit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const router = useRouter();
 
   useEffect(() => {
     if (!id) return;
     axios.get<Commit>(`https://chatcommit.fly.dev/commit/${id}`)
       .then(res => setCommit(res.data))
-      .catch(err => {
-        console.error('Error fetching commit:', err);
-        setError('Failed to load commit.');
-      })
+      .catch(() => setError('Failed to load commit.'))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -38,11 +35,7 @@ export default function CommitDetailPage() {
   return (
     <div className="max-w-3xl mx-auto p-6 text-white">
       <h2 className="text-2xl font-bold mb-4">Commit Details</h2>
-
-      {/* Hide the default View button */}
       <CommitCard {...commit} hideView />
-
-      {/* Back to Branch link */}
       {commit.branch_id && (
         <button
           onClick={() => router.push(`/branches/${commit.branch_id}`)}
