@@ -44,10 +44,10 @@ export default function BranchDetailPage() {
     setLoading(true);
     setError("");
 
-    // Fetch branch and commits in parallel with retries
+    // Fetch branch and commits in parallel with retries via proxy
     Promise.all([
-      retry(() => axios.get<Branch>(`https://chatcommit.fly.dev/branch/${branchId}`)),
-      retry(() => axios.get<Commit[]>(`https://chatcommit.fly.dev/branch/${branchId}/commits`))
+      retry(() => axios.get<Branch>(`/api/branch/${branchId}`)),
+      retry(() => axios.get<Commit[]>(`/api/branch/${branchId}/commits`))
     ])
       .then(([branchRes, commitsRes]) => {
         setBranch(branchRes.data);
