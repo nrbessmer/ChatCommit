@@ -17,11 +17,8 @@ export default function BranchesPage() {
 
   useEffect(() => {
     axios
-      .get<Branch[]>('/api/branch/')
-      .then(res => {
-        console.log('Fetched branches:', res.data);
-        setBranches(res.data);
-      })
+      .get<Branch[]>('https://chatcommit.fly.dev/branch/')
+      .then(res => setBranches(res.data))
       .catch(err => {
         console.error('Error fetching branches:', err);
         setError('Failed to load branches.');
@@ -29,29 +26,9 @@ export default function BranchesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 text-white">
-        <p>Loading branches…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 text-red-500">
-        <p>{error}</p>
-      </div>
-    );
-  }
-
-  if (branches.length === 0) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 text-white">
-        <p>No branches found.</p>
-      </div>
-    );
-  }
+  if (loading) return <p className="p-6 text-white">Loading branches…</p>;
+  if (error)   return <p className="p-6 text-red-500">{error}</p>;
+  if (branches.length === 0) return <p className="p-6 text-white">No branches found.</p>;
 
   return (
     <div className="max-w-4xl mx-auto p-6 text-white">

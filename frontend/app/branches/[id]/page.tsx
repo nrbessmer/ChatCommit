@@ -30,12 +30,9 @@ export default function BranchDetailPage() {
   useEffect(() => {
     if (!branchId) return;
 
-    setLoading(true);
-    setError('');
-
     Promise.all([
-      axios.get<Branch>(`/api/branch/${branchId}`),
-      axios.get<Commit[]>(`/api/branch/${branchId}/commits`),
+      axios.get<Branch>(`https://chatcommit.fly.dev/branch/${branchId}`),
+      axios.get<Commit[]>(`https://chatcommit.fly.dev/branch/${branchId}/commits`)
     ])
       .then(([branchRes, commitsRes]) => {
         setBranch(branchRes.data);
@@ -48,29 +45,9 @@ export default function BranchDetailPage() {
       .finally(() => setLoading(false));
   }, [branchId]);
 
-  if (loading) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 text-white">
-        <p>Loading branch details…</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 text-red-500">
-        <p>{error}</p>
-      </div>
-    );
-  }
-
-  if (!branch) {
-    return (
-      <div className="max-w-4xl mx-auto p-6 text-white">
-        <p>Branch not found.</p>
-      </div>
-    );
-  }
+  if (loading) return <p className="p-6 text-white">Loading branch details…</p>;
+  if (error)   return <p className="p-6 text-red-500">{error}</p>;
+  if (!branch) return <p className="p-6 text-white">Branch not found.</p>;
 
   return (
     <div className="max-w-4xl mx-auto p-6 text-white">
