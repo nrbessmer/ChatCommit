@@ -20,18 +20,32 @@ export default function CommitDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    axios.get<Commit>(`/api/commit/${id}`)
+
+    axios
+      .get<Commit>(`https://chatcommit.fly.dev/commit/${id}`)
       .then(res => setCommit(res.data))
-      .catch(() => setError('Failed to load commit.'))
+      .catch(err => {
+        console.error('Error fetching commit:', err);
+        setError('Failed to load commit.');
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <p className="p-6">Loading commit…</p>;
-  if (error)   return <p className="p-6 text-red-500">{error}</p>;
-  if (!commit) return <p className="p-6">Commit not found.</p>;
+  if (loading) {
+    return <p className="p-6 text-white">Loading commit…</p>;
+  }
+
+  if (error) {
+    return <p className="p-6 text-red-500">{error}</p>;
+  }
+
+  if (!commit) {
+    return <p className="p-6 text-white">Commit not found.</p>;
+  }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="max-w-3xl mx-auto p-6 text-white">
+      <h2 className="text-2xl font-bold mb-4">Commit Details</h2>
       <CommitCard {...commit} />
     </div>
   );
