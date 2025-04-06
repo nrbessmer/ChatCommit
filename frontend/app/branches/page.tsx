@@ -12,13 +12,46 @@ interface Branch {
 
 export default function BranchesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    axios
-      .get<Branch[]>('https://chatcommit.fly.dev/branch/')
-      .then(res => setBranches(res.data))
-      .catch(err => console.error('Failed to load branches:', err));
+    axios.get<Branch[]>('https://chatcommit.fly.dev/branch/')
+      .then(res => {
+        console.log("Fetched branches:", res.data);
+        setBranches(res.data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to load branches:", err);
+        setError("Failed to load branches.");
+        setLoading(false);
+      });
   }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-white">
+        <p>Loading branches...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-white">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  if (!branches || branches.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-white">
+        <p>No branches found.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6 text-white">
@@ -42,3 +75,4 @@ export default function BranchesPage() {
     </div>
   );
 }
+
