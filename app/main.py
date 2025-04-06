@@ -18,7 +18,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://chatcommit.fly.dev",
-        "https://chat-commit-git-main-nicholas-bessmers-projects.vercel.app",
+        "https://chat-commit.vercel.app",        # <-- add this
         "chrome-extension://obciponildojcfgfajioeomjkihdadbc",
     ],
     allow_credentials=True,
