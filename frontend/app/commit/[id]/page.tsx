@@ -53,6 +53,7 @@ export default function CommitDetailPage() {
       <div className="max-w-3xl mx-auto bg-gray-800 p-6 rounded-lg shadow-xl text-gray-100">
         <h2 className="text-2xl font-bold mb-4">Commit Details</h2>
 
+        {/* Commit summary */}
         <CommitCard {...commit} hideView />
 
         {/* Conversation Context */}
@@ -63,12 +64,11 @@ export default function CommitDetailPage() {
               <button
                 onClick={copyContext}
                 aria-label="Copy conversation context"
-                className="p-1 hover:text-blue-400"
+                className="inline-flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded"
               >
-                {/* Copy Icon */}
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-gray-300"
+                  className="h-5 w-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -80,6 +80,7 @@ export default function CommitDetailPage() {
                     d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h6m4 0h2a2 2 0 012 2v8a2 2 0 01-2 2h-2M8 12h6m-6 4h6"
                   />
                 </svg>
+                <span className="text-sm">Copy</span>
               </button>
             </div>
             <div className="bg-gray-700 p-4 rounded max-h-64 overflow-y-auto text-gray-200 font-mono text-sm">
