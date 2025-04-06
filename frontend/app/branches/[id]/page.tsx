@@ -1,17 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import axios from 'axios';
-import CommitCard from '@/components/CommitCard';
-
-interface Commit {
-  id: number;
-  commit_hash: string;
-  commit_message: string;
-  created_at: string;
-  branch_id?: number;
-}
 
 interface Branch {
   id: number;
@@ -19,64 +10,49 @@ interface Branch {
   current_commit_id: number | null;
 }
 
-export default function BranchDetailPage() {
-  const params = useParams() as { id: string };
-  const branchId = params.id;
-
-  console.log('BranchDetailPage: branchId =', branchId);
-
-  const [branch, setBranch] = useState<Branch | null>(null);
-  const [commits, setCommits] = useState<Commit[]>([]);
-  const [error, setError] = useState<string>('');
+export default function BranchesPage() {
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!branchId) return;
-
-    // Fetch branch details
-    axios.get<Branch>(`https://chatcommit.fly.dev/branch/${branchId}`)
+    axios
+      .get<Branch[]>('https://chatcommit.fly.dev/branch/')
       .then(res => {
-        console.log('Fetched branch data:', res.data);
-        setBranch(res.data);
+        console.log("Fetched branches:", res.data);
+        setBranches(res.data);
       })
       .catch(err => {
-        console.error('Error fetching branch data:', err);
-        setError('Error fetching branch data.');
-      });
-
-    // Fetch commits for the branch
-    axios.get<Commit[]>(`https://chatcommit.fly.dev/branch/${branchId}/commits`)
-      .then(res => {
-        console.log('Fetched commits:', res.data);
-        setCommits(res.data);
+        console.error("Error fetching branches:", err);
+        setError("Failed to load branches.");
       })
-      .catch(err => {
-        console.error('Error fetching commits:', err);
-        setError('Error fetching commits.');
-      });
-  }, [branchId]);
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="p-6 text-white">Loading branches...</p>;
+  if (error)   return <p className="p-6 text-red-500">{error}</p>;
+  if (branches.length === 0)
+    return <p className="p-6 text-white">No branches found.</p>;
 
   return (
     <div className="max-w-4xl mx-auto p-6 text-white">
-      <h2 className="text-2xl font-bold mb-4">Commits</h2>
-
-      {error && <p className="text-red-500">{error}</p>}
-
-      {branch ? (
-        <div className="mb-6 bg-gray-800 p-4 rounded shadow">
-          <p className="text-green-400 font-bold text-lg">{branch.name}</p>
-          <p className="text-sm text-gray-400">
+      <h2 className="text-2xl font-bold mb-6">Branches</h2>
+      {branches.map(branch => (
+        <div key={branch.id} className="bg-gray-800 rounded-lg p-4 mb-4 shadow">
+          <p className="text-green-400 font-bold text-lg">
+            {branch.name} <span className="text-sm text-gray-400">(#{branch.id})</span>
+          </p>
+          <p className="text-sm text-gray-300 mt-1">
             HEAD Commit ID: {branch.current_commit_id ?? 'None'}
           </p>
+          <Link
+            href={`/branches/${branch.id}`}
+            className="text-blue-400 text-sm hover:underline mt-2 inline-block"
+          >
+            View Commits →
+          </Link>
         </div>
-      ) : (
-        <p className="text-gray-400">Loading branch info...</p>
-      )}
-
-      {commits.length > 0 ? (
-        commits.map(commit => <CommitCard key={commit.id} {...commit} />)
-      ) : (
-        <p className="text-gray-400">No commits found.</p>
-      )}
+      ))}
     </div>
   );
 }
