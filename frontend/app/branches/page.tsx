@@ -12,23 +12,61 @@ interface Branch {
 
 export default function BranchesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    let mounted = true;
     axios
       .get<Branch[]>('https://chatcommit.fly.dev/branch/')
       .then(res => {
-        console.log("Fetched branches:", res.data);
-        setBranches(res.data);
+        if (mounted) {
+          setBranches(res.data);
+        }
       })
       .catch(err => {
         console.error("Error fetching branches:", err);
+        if (mounted) {
+          setError("Failed to load branches.");
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
       });
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-white">
+        <p>Loading branches…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-red-500">
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (branches.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-white">
+        <p>No branches found.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6 text-white">
       <h2 className="text-2xl font-bold mb-6">Branches</h2>
-      {branches.length === 0 && <p>No branches found.</p>}
       {branches.map(branch => (
         <div key={branch.id} className="bg-gray-800 rounded-lg p-4 mb-4 shadow">
           <p className="text-green-400 font-bold text-lg">
