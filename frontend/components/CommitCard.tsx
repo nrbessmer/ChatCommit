@@ -1,4 +1,3 @@
-// components/CommitCard.tsx
 import { FC } from 'react';
 import Link from 'next/link';
 
@@ -7,11 +6,20 @@ type CommitCardProps = {
   commit_hash: string;
   commit_message: string;
   created_at: string;
-  branch?: string;
-  tags?: string[]; // ✅ Add tags here
+  branch_id?: number;
+  tags?: string[];
+  hideView?: boolean;   // New prop to hide the View button
 };
 
-const CommitCard: FC<CommitCardProps> = ({ id, commit_hash, commit_message, created_at, branch, tags }) => {
+const CommitCard: FC<CommitCardProps> = ({
+  id,
+  commit_hash,
+  commit_message,
+  created_at,
+  branch_id,
+  tags,
+  hideView = false,
+}) => {
   return (
     <div className="bg-white shadow-md rounded-xl p-4 mb-4 border hover:shadow-lg transition-all">
       <div className="flex justify-between items-start">
@@ -19,12 +27,9 @@ const CommitCard: FC<CommitCardProps> = ({ id, commit_hash, commit_message, crea
           <p className="text-sm text-gray-400">Commit:</p>
           <p className="font-mono text-xs text-blue-700 truncate">{commit_hash}</p>
           <p className="text-lg font-semibold mt-1">{commit_message}</p>
-          <p className="text-sm text-gray-500 mt-1">{new Date(created_at).toLocaleString()}</p>
-          {branch && (
-            <span className="inline-block bg-green-100 text-green-800 text-xs font-medium mt-2 px-2 py-1 rounded">
-              Branch: {branch}
-            </span>
-          )}
+          <p className="text-sm text-gray-500 mt-1">
+            {new Date(created_at).toLocaleString()}
+          </p>
           {tags && tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">
               {tags.map((tag) => (
@@ -38,12 +43,15 @@ const CommitCard: FC<CommitCardProps> = ({ id, commit_hash, commit_message, crea
             </div>
           )}
         </div>
-        <Link
-          href={`/commit/${id}`}
-          className="text-sm bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700"
-        >
-          View
-        </Link>
+        {/* Conditionally render the View button */}
+        {!hideView && (
+          <Link
+            href={`/commit/${id}`}
+            className="text-sm bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700"
+          >
+            View
+          </Link>
+        )}
       </div>
     </div>
   );
