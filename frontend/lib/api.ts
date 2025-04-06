@@ -1,9 +1,8 @@
-// File: frontend/lib/api.ts
 import axios from 'axios';
 
-const API_BASE = "https://chatcommit.fly.dev/api";
+const API_BASE = "https://chatcommit.fly.dev"; // Removed '/api' to match backend routes
 
-// FIXED: Accepts branchId
+// Accepts branchId and fetches commits for that branch
 export const fetchCommits = async (branchId: number) => {
   const res = await axios.get(`${API_BASE}/branch/${branchId}/commits`);
   return res.data;
@@ -43,4 +42,3 @@ export const rollbackBranch = async (branchId: number, commitId: number) => {
   const res = await axios.post(`${API_BASE}/rollback/${branchId}/${commitId}`);
   return res.data;
 };
-
