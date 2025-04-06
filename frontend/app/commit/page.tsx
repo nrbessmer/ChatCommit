@@ -4,63 +4,84 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
-export default function CommitFormPage() {
+async function retry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries <= 0) throw err;
+    await new Promise(r => setTimeout(r, delay));
+    return retry(fn, retries - 1, delay);
+  }
+}
+
+export default function CommitForm({ branchId }: { branchId: number }) {
   const router = useRouter();
-  const [commitMessage, setCommitMessage] = useState('');
-  const [context, setContext] = useState('{"messages": ["Hello", "World"]}');
+  const [message, setMessage] = useState('');
+  const [context, setContext] = useState('');
+  const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setStatus('Committing...');
+    let parsedContext = {};
+    try {
+      parsedContext = JSON.parse(context || '{}');
+    } catch {
+      setStatus('Invalid JSON context.');
+      setSubmitting(false);
+      return;
+    }
 
     try {
-      const payload = {
-        commit_message: commitMessage,
-        conversation_context: JSON.parse(context),
-      };
-      await axios.post('https://chatcommit.fly.dev/api/commit/', payload);
-      router.push('/');
-    } catch (error) {
-      console.error('Failed to submit commit:', error);
-      alert('Commit failed. Check your context JSON.');
+      const res = await retry(() =>
+        axios.post('https://chatcommit.fly.dev/commit/', {
+          commit_message: message,
+          conversation_context: parsedContext,
+          branch_id: branchId,
+        })
+      );
+      setStatus(`✅ Commit created: ${res.data.commit_hash}`);
+      setMessage('');
+      setContext('');
+      // Optionally redirect or refresh
+      router.refresh();
+    } catch (err: any) {
+      console.error('Commit failed:', err);
+      setStatus(err.response?.data?.detail || 'Error creating commit.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="max-w-xl mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Create a New Commit</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Commit Message</label>
-          <input
-            type="text"
-            value={commitMessage}
-            onChange={(e) => setCommitMessage(e.target.value)}
-            className="w-full mt-1 p-2 border rounded"
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Conversation Context (JSON)</label>
-          <textarea
-            value={context}
-            onChange={(e) => setContext(e.target.value)}
-            rows={6}
-            className="w-full mt-1 p-2 border rounded font-mono text-sm"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          {submitting ? 'Committing...' : 'Create Commit'}
-        </button>
-      </form>
-    </div>
+    <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-4 bg-gray-800 text-white rounded">
+      <h3 className="text-lg font-bold mb-2">New Commit on Branch #{branchId}</h3>
+      <input
+        type="text"
+        value={message}
+        onChange={e => setMessage(e.target.value)}
+        placeholder="Commit message"
+        className="w-full mb-2 p-2 bg-gray-700 rounded"
+        required
+      />
+      <textarea
+        value={context}
+        onChange={e => setContext(e.target.value)}
+        rows={4}
+        placeholder='Conversation context JSON'
+        className="w-full mb-2 p-2 bg-gray-700 rounded font-mono text-sm"
+        required
+      />
+      <button
+        type="submit"
+        disabled={submitting}
+        className="bg-green-600 px-4 py-2 rounded hover:bg-green-700"
+      >
+        {submitting ? 'Committing...' : 'Create Commit'}
+      </button>
+      {status && <p className="mt-2 text-sm">{status}</p>}
+    </form>
   );
 }
