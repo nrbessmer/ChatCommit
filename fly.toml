@@ -14,7 +14,6 @@ primary_region = "bos"
   internal_port = 8000
   force_https = true
   auto_start_machines = true
-  auto_stop_machines = "never"   # Keep this one
   min_machines_running = 2
   processes = ["app"]
 
