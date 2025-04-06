@@ -12,55 +12,27 @@ interface Commit {
   created_at: string;
 }
 
-interface Branch {
-  id: number;
-  name: string;
-  current_commit_id: number | null;
-}
-
-export default function BranchDetailPage() {
+export default function CommitDetailPage() {
   const { id } = useParams() as { id: string };
-  const branchId = id;
-
-  const [branch, setBranch] = useState<Branch | null>(null);
-  const [commits, setCommits] = useState<Commit[]>([]);
+  const [commit, setCommit] = useState<Commit | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!branchId) return;
-
-    Promise.all([
-      axios.get<Branch>(`https://chatcommit.fly.dev/branch/${branchId}`),
-      axios.get<Commit[]>(`https://chatcommit.fly.dev/branch/${branchId}/commits`)
-    ])
-      .then(([branchRes, commitsRes]) => {
-        setBranch(branchRes.data);
-        setCommits(commitsRes.data);
-      })
-      .catch(err => {
-        console.error("Error fetching branch or commits:", err);
-        setError("Failed to load branch details.");
-      })
+    if (!id) return;
+    axios.get<Commit>(`/api/commit/${id}`)
+      .then(res => setCommit(res.data))
+      .catch(() => setError('Failed to load commit.'))
       .finally(() => setLoading(false));
-  }, [branchId]);
+  }, [id]);
 
-  if (loading) return <p className="p-6 text-white">Loading branch...</p>;
+  if (loading) return <p className="p-6">Loading commit…</p>;
   if (error)   return <p className="p-6 text-red-500">{error}</p>;
-  if (!branch) return <p className="p-6 text-white">Branch not found.</p>;
+  if (!commit) return <p className="p-6">Commit not found.</p>;
 
   return (
-    <div className="max-w-4xl mx-auto p-6 text-white">
-      <h2 className="text-2xl font-bold mb-4">Branch: {branch.name}</h2>
-      <p className="mb-6 text-sm text-gray-400">
-        HEAD Commit ID: {branch.current_commit_id ?? 'None'}
-      </p>
-
-      {commits.length > 0 ? (
-        commits.map(c => <CommitCard key={c.id} {...c} />)
-      ) : (
-        <p className="text-gray-400">No commits found for this branch.</p>
-      )}
+    <div className="max-w-3xl mx-auto p-6">
+      <CommitCard {...commit} />
     </div>
   );
 }
