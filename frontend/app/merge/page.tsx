@@ -8,65 +8,56 @@ interface Branch {
   name: string;
 }
 
-async function retry<T>(fn: () => Promise<T>, retries = 3, delay = 500): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    if (retries <= 0) throw err;
-    await new Promise(r => setTimeout(r, delay));
-    return retry(fn, retries - 1, delay);
-  }
-}
-
 export default function MergePage() {
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [sourceId, setSourceId] = useState('');
-  const [targetId, setTargetId] = useState('');
-  const [status, setStatus] = useState('');
-  const [loadingBranches, setLoadingBranches] = useState(true);
-  const [errorBranches, setErrorBranches] = useState('');
+  const [sourceBranch, setSourceBranch] = useState('');
+  const [targetBranch, setTargetBranch] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    retry(() => axios.get<Branch[]>('https://chatcommit.fly.dev/branch/'))
+    axios.get<Branch[]>('https://chatcommit.fly.dev/branch/')
       .then(res => setBranches(res.data))
       .catch(err => {
         console.error('Error loading branches:', err);
-        setErrorBranches('Failed to load branches.');
+        setError('Failed to load branches.');
       })
-      .finally(() => setLoadingBranches(false));
+      .finally(() => setLoading(false));
   }, []);
 
   const handleMerge = async () => {
-    if (!sourceId || !targetId || sourceId === targetId) {
-      setStatus('Please select two different branches.');
+    if (!sourceBranch || !targetBranch || sourceBranch === targetBranch) {
+      alert('Please select two different branches.');
       return;
     }
-    setStatus('Merging...');
+    setMessage('Merging...');
     try {
-      const res = await retry(() => axios.post(
-        `https://chatcommit.fly.dev/merge/${sourceId}/${targetId}`
-      ));
-      setStatus(res.data.message);
+      const res = await axios.post('https://chatcommit.fly.dev/merge', {
+        source_branch_id: parseInt(sourceBranch),
+        target_branch_id: parseInt(targetBranch)
+      });
+      setMessage(res.data.message);
     } catch (err: any) {
       console.error('Merge failed:', err);
-      setStatus(err.response?.data?.detail || 'Merge failed.');
+      setMessage(err.response?.data?.detail || 'Merge failed.');
     }
   };
 
-  if (loadingBranches) return <p className="p-6 text-white">Loading branches...</p>;
-  if (errorBranches) return <p className="p-6 text-red-500">{errorBranches}</p>;
+  if (loading) return <p className="p-6 text-white">Loading branches…</p>;
+  if (error) return <p className="p-6 text-red-500">{error}</p>;
 
   return (
-    <div className="max-w-xl mx-auto p-6 text-white">
+    <div className="max-w-xl mx-auto p-6 text-white bg-gray-900 rounded-lg">
       <h2 className="text-xl font-bold mb-4">Merge Branches</h2>
       <div className="mb-4">
         <label className="block mb-1">Source Branch</label>
         <select
-          value={sourceId}
-          onChange={e => setSourceId(e.target.value)}
+          value={sourceBranch}
+          onChange={e => setSourceBranch(e.target.value)}
           className="w-full p-2 border rounded bg-gray-800 text-gray-100"
         >
-          <option value="">Select source</option>
+          <option value="">Select source branch</option>
           {branches.map(b => (
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
@@ -75,11 +66,11 @@ export default function MergePage() {
       <div className="mb-4">
         <label className="block mb-1">Target Branch</label>
         <select
-          value={targetId}
-          onChange={e => setTargetId(e.target.value)}
+          value={targetBranch}
+          onChange={e => setTargetBranch(e.target.value)}
           className="w-full p-2 border rounded bg-gray-800 text-gray-100"
         >
-          <option value="">Select target</option>
+          <option value="">Select target branch</option>
           {branches.map(b => (
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
@@ -91,7 +82,7 @@ export default function MergePage() {
       >
         Merge
       </button>
-      {status && <div className="mt-4 p-3 bg-gray-700 text-white rounded">{status}</div>}
+      {message && <div className="mt-4 p-3 bg-gray-700 rounded text-sm">{message}</div>}
     </div>
   );
 }
