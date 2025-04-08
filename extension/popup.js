@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const repoHookField = document.getElementById("repo-hook");
 
   // Buttons for merges
-    // Buttons for merges
+
   document.getElementById("merge-btn").onclick = async () => {
     const sourceId = branchSelect.value;
     if (!sourceId) {
