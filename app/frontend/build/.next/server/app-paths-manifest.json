@@ -1,11 +1,11 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
-  "/branches/[id]/page": "app/branches/[id]/page.js",
+  "/branches/page": "app/branches/page.js",
+  "/commit/page": "app/commit/page.js",
   "/commit/[id]/page": "app/commit/[id]/page.js",
   "/chat/page": "app/chat/page.js",
-  "/branches/page": "app/branches/page.js",
   "/merge/page": "app/merge/page.js",
   "/page": "app/page.js",
-  "/commit/page": "app/commit/page.js"
+  "/branches/[id]/page": "app/branches/[id]/page.js"
 }
