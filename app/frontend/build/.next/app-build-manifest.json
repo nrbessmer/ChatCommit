@@ -16,22 +16,14 @@
       "static/chunks/581-f111efa647e2d114.js",
       "static/chunks/app/layout-cafd9801bcbf83bc.js"
     ],
-    "/chat/page": [
-      "static/chunks/webpack-db3214c5c58110e1.js",
-      "static/chunks/4bd1b696-704dc55da575ac8d.js",
-      "static/chunks/684-dd692206fb1b2990.js",
-      "static/chunks/main-app-57f1d96c2ca63e4f.js",
-      "static/chunks/464-fa54c2978af1e7bb.js",
-      "static/chunks/app/chat/page-5eee6f8f82466259.js"
-    ],
-    "/commit/page": [
+    "/commit/[id]/page": [
       "static/chunks/webpack-db3214c5c58110e1.js",
       "static/chunks/4bd1b696-704dc55da575ac8d.js",
       "static/chunks/684-dd692206fb1b2990.js",
       "static/chunks/main-app-57f1d96c2ca63e4f.js",
       "static/chunks/464-fa54c2978af1e7bb.js",
       "static/chunks/874-39b4efccf57c932c.js",
-      "static/chunks/app/commit/page-f2680a859bd83238.js"
+      "static/chunks/app/commit/[id]/page-cfc076b55239be59.js"
     ],
     "/branches/page": [
       "static/chunks/webpack-db3214c5c58110e1.js",
@@ -42,22 +34,14 @@
       "static/chunks/874-39b4efccf57c932c.js",
       "static/chunks/app/branches/page-a09145101abf4eab.js"
     ],
-    "/commit/[id]/page": [
+    "/commit/page": [
       "static/chunks/webpack-db3214c5c58110e1.js",
       "static/chunks/4bd1b696-704dc55da575ac8d.js",
       "static/chunks/684-dd692206fb1b2990.js",
       "static/chunks/main-app-57f1d96c2ca63e4f.js",
       "static/chunks/464-fa54c2978af1e7bb.js",
       "static/chunks/874-39b4efccf57c932c.js",
-      "static/chunks/app/commit/[id]/page-cfc076b55239be59.js"
-    ],
-    "/merge/page": [
-      "static/chunks/webpack-db3214c5c58110e1.js",
-      "static/chunks/4bd1b696-704dc55da575ac8d.js",
-      "static/chunks/684-dd692206fb1b2990.js",
-      "static/chunks/main-app-57f1d96c2ca63e4f.js",
-      "static/chunks/464-fa54c2978af1e7bb.js",
-      "static/chunks/app/merge/page-350df8641317436d.js"
+      "static/chunks/app/commit/page-f2680a859bd83238.js"
     ],
     "/page": [
       "static/chunks/webpack-db3214c5c58110e1.js",
@@ -76,6 +60,22 @@
       "static/chunks/464-fa54c2978af1e7bb.js",
       "static/chunks/874-39b4efccf57c932c.js",
       "static/chunks/app/branches/[id]/page-42d621a4cca347ee.js"
+    ],
+    "/merge/page": [
+      "static/chunks/webpack-db3214c5c58110e1.js",
+      "static/chunks/4bd1b696-704dc55da575ac8d.js",
+      "static/chunks/684-dd692206fb1b2990.js",
+      "static/chunks/main-app-57f1d96c2ca63e4f.js",
+      "static/chunks/464-fa54c2978af1e7bb.js",
+      "static/chunks/app/merge/page-350df8641317436d.js"
+    ],
+    "/chat/page": [
+      "static/chunks/webpack-db3214c5c58110e1.js",
+      "static/chunks/4bd1b696-704dc55da575ac8d.js",
+      "static/chunks/684-dd692206fb1b2990.js",
+      "static/chunks/main-app-57f1d96c2ca63e4f.js",
+      "static/chunks/464-fa54c2978af1e7bb.js",
+      "static/chunks/app/chat/page-5eee6f8f82466259.js"
     ]
   }
 }
