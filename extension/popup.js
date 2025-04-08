@@ -26,6 +26,61 @@ document.addEventListener("DOMContentLoaded", () => {
   const repoHookField = document.getElementById("repo-hook");
 
   // Buttons for merges
+    // Buttons for merges
+  document.getElementById("merge-btn").onclick = async () => {
+    const sourceId = branchSelect.value;
+    if (!sourceId) {
+      alert("❌ No branch selected to merge from.");
+      return;
+    }
+
+    chrome.storage.local.get(["repoUrl"], async (res) => {
+      const base = res.repoUrl || "https://chatcommit.fly.dev";
+
+      try {
+        // Fetch all branches
+        const response = await fetch(`${base}/branch/`);
+        const branches = await response.json();
+
+        const sourceBranch = branches.find(b => b.id == sourceId);
+        const targets = branches.filter(b => b.id != sourceId);
+
+        if (targets.length === 0) {
+          alert("❌ No other branches to merge into.");
+          return;
+        }
+
+        const list = targets.map(b => `${b.name} (#${b.id})`).join('\n');
+        const choice = prompt(
+          `Merge from: ${sourceBranch.name} (#${sourceBranch.id})\nChoose target branch:\n${list}`
+        );
+        const target = targets.find(b => choice && choice.includes(`#${b.id})`));
+
+        if (!target) {
+          alert("❌ Merge cancelled: no valid target selected.");
+          return;
+        }
+
+        const mergeRes = await fetch(`${base}/merge/${sourceId}/${target.id}`, {
+          method: "POST",
+        });
+
+        if (!mergeRes.ok) {
+          const err = await mergeRes.text();
+          statusMsg.textContent = `❌ Merge error: ${err}`;
+        } else {
+          statusMsg.textContent = `✅ Merged ${sourceBranch.name} → ${target.name}`;
+        }
+      } catch (e) {
+        console.error("Merge error:", e);
+        statusMsg.textContent = "❌ Merge failed. See console for details.";
+      }
+    });
+  };
+
+  document.getElementById("rollback-btn").onclick = () => alert("⏪ Rollback: Coming soon!");
+  document.getElementById("timeline-btn").onclick = () => alert("🕒 Timeline: Coming soon!");
+
   document.getElementById("merge-btn").onclick = () => alert("🔀 Merge: Coming soon!");
   document.getElementById("rollback-btn").onclick = () => alert("⏪ Rollback: Coming soon!");
   document.getElementById("timeline-btn").onclick = () => alert("🕒 Timeline: Coming soon!");

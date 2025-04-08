@@ -30,6 +30,30 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/",
+      "dataRoute": "/index.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/branches": {
       "experimentalBypassFor": [
         {
@@ -54,7 +78,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/merge": {
+    "/chat": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -67,32 +91,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/merge",
-      "dataRoute": "/merge.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/",
-      "dataRoute": "/index.rsc",
+      "srcRoute": "/chat",
+      "dataRoute": "/chat.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -126,7 +126,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/chat": {
+    "/merge": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -139,8 +139,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/chat",
-      "dataRoute": "/chat.rsc",
+      "srcRoute": "/merge",
+      "dataRoute": "/merge.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -154,8 +154,8 @@
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "aa31fdf34bbb848448f9bad2079ec9ba",
-    "previewModeSigningKey": "ae02b2ecea71a6c42b5a150670f37d400c91f34ac3e958803d9b3d8312005625",
-    "previewModeEncryptionKey": "eda5f0bf1f3277ef17008211a2de6bb88b9cd85a03a67de71e4be5a77747aa96"
+    "previewModeId": "8eeaefdb4fc5218fc128c52b20510118",
+    "previewModeSigningKey": "52811897d1433faeaa2e5f0a45bb73c1232d5d890873fee423b69648cbc33108",
+    "previewModeEncryptionKey": "65bed00de2a110bbf5ae59bc7c8c92cb287042bcdea45ae1a8f48ac7ac53d0e6"
   }
 }
