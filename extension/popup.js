@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const backendUrlField = document.getElementById("backend-url");
   const repoHookField = document.getElementById("repo-hook");
 
-  // Buttons for merges
+  // Buttons for merges 
 
   document.getElementById("merge-btn").onclick = async () => {
     const sourceId = branchSelect.value;
@@ -78,10 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  document.getElementById("rollback-btn").onclick = () => alert("⏪ Rollback: Coming soon!");
-  document.getElementById("timeline-btn").onclick = () => alert("🕒 Timeline: Coming soon!");
-
-  document.getElementById("merge-btn").onclick = () => alert("🔀 Merge: Coming soon!");
   document.getElementById("rollback-btn").onclick = () => alert("⏪ Rollback: Coming soon!");
   document.getElementById("timeline-btn").onclick = () => alert("🕒 Timeline: Coming soon!");
 
