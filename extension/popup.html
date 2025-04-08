@@ -1,44 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>ChatCommit</title>
-  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
+  <!-- Main Panel -->
   <div class="container" id="main-panel">
-    <img src="icon.png" class="logo" alt="ChatCommit Logo">
+    <img src="icon.png" class="logo" alt="ChatCommit Logo" />
     <h1 class="header">
       <span class="chat">Chat</span><span class="commit">Commit</span>
     </h1>
     <p class="subtitle">©2025 Tully EDM Vibe | info@tullyedmvibe.com</p>
 
-    <!-- Refresh at top -->
     <button id="refresh-chat" class="blue">🔄 Refresh Chat</button>
 
-    <!-- Branch selection + create + view -->
+    <!-- Branch Selection -->
     <label for="branch-select">Branch:</label>
     <select id="branch-select"></select>
     <button id="create-branch" class="blue">➕ Create Branch</button>
     <button id="view-branches" class="blue">📂 View Branches</button>
 
-    <!-- Commit message -->
     <label for="message-input">Commit Message:</label>
     <textarea id="message-input" rows="3" placeholder="Describe your changes"></textarea>
 
-    <!-- Conversation context with larger area, purple scrollbar, read-only -->
     <label for="context-area">Conversation Context (Read-Only):</label>
     <textarea id="context-area" readonly placeholder='{"messages":[],"canvas_images":[],"images":[]}'></textarea>
     <button id="copy-context" class="purple">📋 Copy Context</button>
 
-    <!-- Tag creation -->
     <label for="tag-input">Add Tag (optional):</label>
     <input type="text" id="tag-input" placeholder="e.g. 'UI-fix'" />
 
-    <!-- Commit button -->
     <button id="commit-btn" class="primary">💾 Commit</button>
 
-    <!-- Additional actions: Merge, Rollback, Timeline, Settings -->
+    <!-- Utility Buttons -->
     <div class="button-group">
       <button id="merge-btn">🔀 Merge</button>
       <button id="rollback-btn">⏪ Rollback</button>
@@ -49,29 +45,40 @@
     <p id="status-message"></p>
   </div>
 
-  <!-- Settings Panel (hidden by default) -->
+  <!-- Settings Panel -->
   <div class="container" id="settings-panel" style="display: none;">
     <h2 class="header">ChatCommit Settings</h2>
-
     <label for="openai-key">OpenAI API Key:</label>
     <input type="text" id="openai-key" placeholder="sk-..." />
-
     <label for="claude-key">Claude API Key (placeholder):</label>
     <input type="text" id="claude-key" disabled value="(coming soon)" />
-
     <label for="gemini-key">Gemini API Key (placeholder):</label>
     <input type="text" id="gemini-key" disabled value="(coming soon)" />
-
     <label for="backend-url">Backend Repo URL:</label>
-    <input type="text" id="backend-url" placeholder="https://chatcommit.fly.dev:8000" />
-
+    <input type="text" id="backend-url" placeholder="https://chatcommit.fly.dev" />
     <label for="repo-hook">Repo Hook (optional):</label>
     <input type="text" id="repo-hook" placeholder="(not used yet)" />
-
     <div class="button-group">
       <button id="save-settings" class="green">💾 Save Settings</button>
       <button id="back-btn">⬅️ Back</button>
     </div>
+  </div>
+
+  <!-- Merge Panel -->
+  <div class="container" id="merge-panel" style="display: none;">
+    <h2 class="header">🔀 Merge Branches</h2>
+    <label for="merge-source">Source Branch:</label>
+    <input type="text" id="merge-source" readonly />
+
+    <label for="merge-target">Select Target Branch:</label>
+    <select id="merge-target"></select>
+
+    <div class="button-group">
+      <button id="execute-merge" class="blue">✅ Confirm Merge</button>
+      <button id="cancel-merge">⬅️ Cancel</button>
+    </div>
+
+    <p id="merge-status"></p>
   </div>
 
   <script src="popup.js"></script>
