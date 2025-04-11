@@ -30,6 +30,30 @@
         "x-next-revalidate-tag-token"
       ]
     },
+    "/commit": {
+      "experimentalBypassFor": [
+        {
+          "type": "header",
+          "key": "Next-Action"
+        },
+        {
+          "type": "header",
+          "key": "content-type",
+          "value": "multipart/form-data;.*"
+        }
+      ],
+      "initialRevalidateSeconds": false,
+      "srcRoute": "/commit",
+      "dataRoute": "/commit.rsc",
+      "allowHeader": [
+        "host",
+        "x-matched-path",
+        "x-prerender-revalidate",
+        "x-prerender-revalidate-if-generated",
+        "x-next-revalidated-tags",
+        "x-next-revalidate-tag-token"
+      ]
+    },
     "/merge": {
       "experimentalBypassFor": [
         {
@@ -45,30 +69,6 @@
       "initialRevalidateSeconds": false,
       "srcRoute": "/merge",
       "dataRoute": "/merge.rsc",
-      "allowHeader": [
-        "host",
-        "x-matched-path",
-        "x-prerender-revalidate",
-        "x-prerender-revalidate-if-generated",
-        "x-next-revalidated-tags",
-        "x-next-revalidate-tag-token"
-      ]
-    },
-    "/branches": {
-      "experimentalBypassFor": [
-        {
-          "type": "header",
-          "key": "Next-Action"
-        },
-        {
-          "type": "header",
-          "key": "content-type",
-          "value": "multipart/form-data;.*"
-        }
-      ],
-      "initialRevalidateSeconds": false,
-      "srcRoute": "/branches",
-      "dataRoute": "/branches.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -126,7 +126,7 @@
         "x-next-revalidate-tag-token"
       ]
     },
-    "/commit": {
+    "/branches": {
       "experimentalBypassFor": [
         {
           "type": "header",
@@ -139,8 +139,8 @@
         }
       ],
       "initialRevalidateSeconds": false,
-      "srcRoute": "/commit",
-      "dataRoute": "/commit.rsc",
+      "srcRoute": "/branches",
+      "dataRoute": "/branches.rsc",
       "allowHeader": [
         "host",
         "x-matched-path",
@@ -154,8 +154,8 @@
   "dynamicRoutes": {},
   "notFoundRoutes": [],
   "preview": {
-    "previewModeId": "4fea4a5640ccbfdbca245ec9467b90f1",
-    "previewModeSigningKey": "ca7860be1a574bb8645d4e52dc64154c0e345c0d2bbd9c8e548e7b4978154845",
-    "previewModeEncryptionKey": "2926e2976ad62f7bd5880d6d473f6587d62e456f8facfb1dddbf492976264586"
+    "previewModeId": "bb3746f7dc86f3cff8f42c73a2f94f3d",
+    "previewModeSigningKey": "6e7d90afd2050a7bd2022b40e2e0cda9873a6a73436cd3fd9bcff8169fcd56a1",
+    "previewModeEncryptionKey": "6863235edd0ca35764066c8b528af5fe2d429d3121e53abece65ef90e26c1226"
   }
 }
