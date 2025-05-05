@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import axios from 'axios';
+import { api } from '@/lib/api';
 import CommitCard from '@/components/CommitCard';
 
 interface Commit {
@@ -10,7 +10,7 @@ interface Commit {
   commit_hash: string;
   commit_message: string;
   created_at: string;
-  tags?: string[];       // we'll fill this in
+  tags?: string[];
 }
 
 interface Branch {
@@ -21,7 +21,7 @@ interface Branch {
 
 export default function BranchDetailPage() {
   const { id } = useParams() as { id: string };
-  const branchId = parseInt(id, 10);
+  const branchId = Number(id);
 
   const [branch, setBranch] = useState<Branch | null>(null);
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -35,33 +35,32 @@ export default function BranchDetailPage() {
     setLoading(true);
     setError('');
 
-    // 1) fetch branch & commits
+    /** helper to pull every tag on a commit */
+    const fetchTagsForCommit = async (commitId: number) => {
+      const { data } = await api.get<{ name: string }[]>(`/tag/commit/${commitId}`);
+      return data.map((t) => t.name);
+    };
+
     Promise.all([
-      axios.get<Branch>(`/api/branch/${branchId}`),
-      axios.get<Commit[]>(`/api/branch/${branchId}/commits`),
-      axios.get<{ id: number; name: string }[]>(`/api/tag/branch/${branchId}`)
+      api.get<Branch>(`/branch/${branchId}`),
+      api.get<Commit[]>(`/branch/${branchId}/commits`),
+      api.get<{ id: number; name: string }[]>(`/tag/branch/${branchId}`),
     ])
-      .then(([bRes, cRes, tRes]) => {
+      .then(async ([bRes, cRes, tRes]) => {
         setBranch(bRes.data);
 
-        // extract tag names
-        const tags = Array.from(new Set(tRes.data.map(t => t.name)));
+        /** build unique tag list for the dropdown */
+        const tags = Array.from(new Set(tRes.data.map((t) => t.name))).sort();
         setAllTags(tags);
 
-        // now for each commit fetch its tags
-        return Promise.all(
-          cRes.data.map(async (c) => {
-            const tagList = await axios
-              .get<{ name: string }[]>(`/api/tag/commit/${c.id}`);
-            return {
-              ...c,
-              tags: tagList.data.map(t => t.name),
-            };
-          })
+        /** attach tags on every commit */
+        const commitsWithTags = await Promise.all(
+          cRes.data.map(async (c) => ({
+            ...c,
+            tags: await fetchTagsForCommit(c.id),
+          })),
         );
-      })
-      .then(fullCommits => {
-        setCommits(fullCommits);
+        setCommits(commitsWithTags);
       })
       .catch((e) => {
         console.error(e);
@@ -71,12 +70,11 @@ export default function BranchDetailPage() {
   }, [branchId]);
 
   if (loading) return <p className="p-6 text-white">Loading…</p>;
-  if (error)   return <p className="p-6 text-red-500">{error}</p>;
+  if (error) return <p className="p-6 text-red-500">{error}</p>;
   if (!branch) return <p className="p-6 text-white">Branch not found.</p>;
 
-  // filter commits by selectedTag
   const visibleCommits = selectedTag
-    ? commits.filter(c => c.tags?.includes(selectedTag))
+    ? commits.filter((c) => c.tags?.includes(selectedTag))
     : commits;
 
   return (
@@ -86,7 +84,7 @@ export default function BranchDetailPage() {
         HEAD Commit ID: {branch.current_commit_id ?? 'None'}
       </p>
 
-      {/* Tag‐filter dropdown */}
+      {/* Tag filter */}
       <div className="mb-4">
         <label className="block text-sm text-gray-300 mb-1">Filter by tag:</label>
         <select
@@ -95,21 +93,21 @@ export default function BranchDetailPage() {
           className="bg-gray-800 text-white px-3 py-1 rounded"
         >
           <option value="">— All tags —</option>
-          {allTags.map(tag => (
-            <option key={tag} value={tag}>{tag}</option>
+          {allTags.map((tag) => (
+            <option key={tag} value={tag}>
+              {tag}
+            </option>
           ))}
         </select>
       </div>
 
-      {/* Commits */}
+      {/* Commit list */}
       {visibleCommits.length > 0 ? (
-        visibleCommits.map(c => (
-          <CommitCard key={c.id} {...c} />
-        ))
+        visibleCommits.map((c) => <CommitCard key={c.id} {...c} />)
       ) : (
         <p className="text-gray-400">
           {selectedTag
-            ? `No commits with tag “${selectedTag}.”`
+            ? `No commits with tag “${selectedTag}”.`
             : 'No commits found.'}
         </p>
       )}
