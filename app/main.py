@@ -8,7 +8,7 @@ import os
 
 from .database import SessionLocal, engine
 from .models import Base, Commit, Branch  # <-- Add Base
-from .routers import commit, branch, rollback, tag
+from .routers import commit, branch, rollback, tag, timeline
 
 app = FastAPI(redirect_slashes=False)
 
@@ -90,5 +90,5 @@ app.include_router(branch.router, prefix="/branch")
 app.include_router(commit.router, prefix="/commit")
 app.include_router(rollback.router, prefix="/rollback")
 app.include_router(tag.router, prefix="/tag")
-
+app.include_router(timeline.router)  # add this line after other routers
 

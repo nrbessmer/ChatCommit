@@ -30,7 +30,7 @@ echo "🌍 Deploying backend to Fly.io..."
 cd "$BACKEND_DIR" || { echo "❌ Backend directory not found."; exit 1; }
 
 fly deploy --app "$FLY_APP" || { echo "❌ Fly.io deployment failed."; exit 1; }
-cd ..
+
 
 # ==== DONE ====
 echo "✅ Deployment completed successfully!"
