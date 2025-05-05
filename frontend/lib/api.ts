@@ -47,5 +47,5 @@ export const rollbackBranch = async (branchId: number, commitId: number) => {
  * You can override the URL in .env.local if you ever run the backend elsewhere.
  */
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE || 'https://chatcommit.fly.dev',
+  baseURL: 'https://chatcommit.fly.dev', // 🔒 Hardcoded fallback
 });

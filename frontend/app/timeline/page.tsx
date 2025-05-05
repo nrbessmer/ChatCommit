@@ -29,6 +29,7 @@ export default function TimelinePage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      console.log('🌐 Fetching timeline, branches, and tags...');
       try {
         const [commitRes, branchRes, tagRes] = await Promise.all([
           api.get<Commit[]>('/timeline'),
@@ -36,30 +37,31 @@ export default function TimelinePage() {
           api.get<{ name: string }[]>('/tag'),
         ]);
 
-        console.log('Timeline response:', commitRes.data);
-
-        const rawCommits = commitRes.data;
-        const branches = branchRes.data;
-        const allTags = [...new Set(tagRes.data.map((t) => t.name))];
+        console.log('✅ Timeline data loaded');
+        setBranches(branchRes.data);
+        setTags([...new Set(tagRes.data.map((t) => t.name))]);
 
         const commitsWithTags = await Promise.all(
-          rawCommits.map(async (commit) => {
-            const tagData = await api.get<{ name: string }[]>(
-              `/tag/commit/${commit.id}`,
-            );
-            return {
-              ...commit,
-              tags: tagData.data.map((t) => t.name),
-            };
+          commitRes.data.map(async (commit) => {
+            try {
+              const tagData = await api.get<{ name: string }[]>(
+                `/tag/commit/${commit.id}`,
+              );
+              return {
+                ...commit,
+                tags: tagData.data.map((t) => t.name),
+              };
+            } catch (e) {
+              console.error(`⚠️ Failed to load tags for commit #${commit.id}`, e);
+              return { ...commit, tags: [] };
+            }
           }),
         );
 
         setCommits(commitsWithTags);
-        setBranches(branches);
-        setTags(allTags);
-      } catch (err) {
-        console.error('Timeline load error:', err);
-        setError('Failed to load timeline data.');
+      } catch (err: any) {
+        console.error('❌ Timeline fetch error:', err);
+        setError(`Failed to load timeline data: ${err.message || JSON.stringify(err)}`);
       } finally {
         setLoading(false);
       }
@@ -82,7 +84,6 @@ export default function TimelinePage() {
     <div className="max-w-5xl mx-auto p-6 text-white">
       <h2 className="text-2xl font-bold mb-4">🕒 Timeline View</h2>
 
-      {/* Filters */}
       <div className="flex gap-4 mb-6">
         <div>
           <label className="block text-sm text-gray-400 mb-1">Branch</label>
