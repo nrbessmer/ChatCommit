@@ -18,12 +18,6 @@ interface Branch {
   name: string;
 }
 
-interface Tag {
-  name: string;
-  commit_id: number;
-  id: number;
-}
-
 export default function TimelinePage() {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -39,27 +33,32 @@ export default function TimelinePage() {
         const [commitRes, branchRes, tagRes] = await Promise.all([
           api.get<Commit[]>('/timeline'),
           api.get<Branch[]>('/branch'),
-          api.get<Tag[]>('/tag'),  // FIXED: Updated type
+          api.get<{ name: string }[]>('/tag'),
         ]);
 
-        setBranches(branchRes.data);
-        setTags([...new Set(tagRes.data.map((t) => t.name))]);
+        console.log('Timeline response:', commitRes.data);
+
+        const rawCommits = commitRes.data;
+        const branches = branchRes.data;
+        const allTags = [...new Set(tagRes.data.map((t) => t.name))];
 
         const commitsWithTags = await Promise.all(
-          commitRes.data.map(async (commit) => {
+          rawCommits.map(async (commit) => {
             const tagData = await api.get<{ name: string }[]>(
-              `/tag/commit/${commit.id}`
+              `/tag/commit/${commit.id}`,
             );
             return {
               ...commit,
               tags: tagData.data.map((t) => t.name),
             };
-          })
+          }),
         );
 
         setCommits(commitsWithTags);
+        setBranches(branches);
+        setTags(allTags);
       } catch (err) {
-        console.error(err);
+        console.error('Timeline load error:', err);
         setError('Failed to load timeline data.');
       } finally {
         setLoading(false);
