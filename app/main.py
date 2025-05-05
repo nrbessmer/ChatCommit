@@ -10,7 +10,7 @@ from .database import SessionLocal, engine
 from .models import Base, Commit, Branch  # <-- Add Base
 from .routers import commit, branch, rollback, tag, timeline
 
-app = FastAPI(redirect_slashes=False)
+app = FastAPI(redirect_slashes=True)  # or just omit the param (default is True)
 
 app = FastAPI()
 
