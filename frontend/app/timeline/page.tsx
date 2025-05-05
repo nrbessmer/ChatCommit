@@ -18,6 +18,12 @@ interface Branch {
   name: string;
 }
 
+interface Tag {
+  name: string;
+  commit_id: number;
+  id: number;
+}
+
 export default function TimelinePage() {
   const [commits, setCommits] = useState<Commit[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -33,7 +39,7 @@ export default function TimelinePage() {
         const [commitRes, branchRes, tagRes] = await Promise.all([
           api.get<Commit[]>('/timeline'),
           api.get<Branch[]>('/branch'),
-          api.get<{ name: string }[]>('/tag'),
+          api.get<Tag[]>('/tag'),  // FIXED: Updated type
         ]);
 
         setBranches(branchRes.data);
@@ -42,13 +48,13 @@ export default function TimelinePage() {
         const commitsWithTags = await Promise.all(
           commitRes.data.map(async (commit) => {
             const tagData = await api.get<{ name: string }[]>(
-              `/tag/commit/${commit.id}`,
+              `/tag/commit/${commit.id}`
             );
             return {
               ...commit,
               tags: tagData.data.map((t) => t.name),
             };
-          }),
+          })
         );
 
         setCommits(commitsWithTags);
@@ -77,6 +83,7 @@ export default function TimelinePage() {
     <div className="max-w-5xl mx-auto p-6 text-white">
       <h2 className="text-2xl font-bold mb-4">🕒 Timeline View</h2>
 
+      {/* Filters */}
       <div className="flex gap-4 mb-6">
         <div>
           <label className="block text-sm text-gray-400 mb-1">Branch</label>
