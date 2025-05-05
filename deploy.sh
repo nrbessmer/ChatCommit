@@ -1,69 +1,37 @@
-#!/usr/bin/env bash
-###############################################################################
-#  ChatCommit one‑shot deploy
-#  - pushes current branch to origin/main
-#  - builds & deploys *frontend* -> Vercel
-#  - deploys *backend*  -> Fly.io
-#  Both deploys happen in parallel; the script exits non‑zero if either fails.
-###############################################################################
-set -e          # fail fast for commands we *don’t* run in parallel
-set -o pipefail
+#!/bin/bash
 
-# ───────── Configuration ────────────────────────────────────────────────────
-APP_NAME="chatcommit"            # purely informational
+# ==== CONFIGURATION ====
+APP_NAME="chatcommit"
 FRONTEND_DIR="frontend"
-BACKEND_DIR="."                  # repo root (contains fly.toml / Dockerfile)
-VERCEL_FLAGS="--prod --confirm"  # adjust to taste
-FLY_APP="chatcommit"             # fly.io app name
-###############################################################################
+BACKEND_DIR="."
+VERCEL_PROJECT="chatcommit"  # Replace with your Vercel project name
+FLY_APP="chatcommit"         # Replace with your Fly.io app name
 
-echo "📦 1. Git push → origin/main"
+# ==== STEP 1: GIT PUSH ====
+echo "📦 Committing and pushing code to Git..."
 git add .
-git commit -m "🔄 Update and deploy latest changes" || true   # no‑op if nothing to commit
-git push origin main
+git commit -m "🔄 Update and deploy latest changes"
+git push origin main || { echo "❌ Git push failed."; exit 1; }
 
-# ───────── Helper to run a step in a subshell and capture its exit status ───
-run_bg () {
-  ( eval "$1" ) &
-  echo $!            # return PID
-}
+# ==== STEP 2: BUILD FRONTEND ====
+echo "🔧 Building frontend with yarn..."
+cd "$FRONTEND_DIR" || { echo "❌ Frontend directory not found."; exit 1; }
 
-# ───────── 2. Frontend build + Vercel deploy (background) ───────────────────
-echo "🚀 2A. Launching Vercel pipeline in background…"
-frontend_pipeline="
-  set -e
-  echo '  ↪️  Installing & building frontend…'
-  cd '${FRONTEND_DIR}'
-  yarn install --silent
-  yarn build
-  echo '  ↪️  Deploying to Vercel…'
-  vercel ${VERCEL_FLAGS}
-"
-pid_front=$(run_bg "${frontend_pipeline}")
+yarn install
+yarn build || { echo "❌ Frontend build failed."; exit 1; }
 
-# ───────── 3. Fly.io deploy (background) ────────────────────────────────────
-echo "🌍 2B. Launching Fly.io pipeline in background…"
-backend_pipeline="
-  set -e
-  echo '  ↪️  Deploying backend to Fly.io…'
-  cd '${BACKEND_DIR}'
-  fly deploy --app '${FLY_APP}'
-"
-pid_back=$(run_bg "${backend_pipeline}")
+# ==== STEP 3: DEPLOY TO VERCEL ====
+echo "🚀 Deploying frontend to Vercel..."
+vercel --prod --confirm || { echo "❌ Vercel deployment failed."; exit 1; }
+cd ..
 
-# ───────── 4. Wait for both pipelines and check exit codes ──────────────────
-echo "⏳ 3. Waiting for both deploys to finish…"
-wait ${pid_front}
-status_front=$?
-wait ${pid_back}
-status_back=$?
+# ==== STEP 4: DEPLOY TO FLY.IO ====
+echo "🌍 Deploying backend to Fly.io..."
+cd "$BACKEND_DIR" || { echo "❌ Backend directory not found."; exit 1; }
 
-# ───────── 5. Final status ──────────────────────────────────────────────────
-if [[ ${status_front} -ne 0 || ${status_back} -ne 0 ]]; then
-  echo "❌ Deployment failed."
-  echo "   Vercel exit code : ${status_front}"
-  echo "   Fly.io exit code : ${status_back}"
-  exit 1
-fi
+fly deploy --app "$FLY_APP" || { echo "❌ Fly.io deployment failed."; exit 1; }
 
-echo "✅ Both Vercel and Fly.io deployments completed successfully!"
+
+# ==== DONE ====
+echo "✅ Deployment completed successfully!"
+
