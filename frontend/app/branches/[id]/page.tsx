@@ -1,3 +1,4 @@
+// File: app/branches/[id]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -35,10 +36,14 @@ export default function BranchDetailPage() {
     setLoading(true);
     setError('');
 
-    /** helper to pull every tag on a commit */
     const fetchTagsForCommit = async (commitId: number) => {
-      const { data } = await api.get<{ name: string }[]>(`/tag/commit/${commitId}`);
-      return data.map((t) => t.name);
+      try {
+        const { data } = await api.get<{ name: string }[]>(`/tag/commit/${commitId}`);
+        return data.map((t) => t.name);
+      } catch (err) {
+        console.error(`Failed to fetch tags for commit ${commitId}`, err);
+        return [];
+      }
     };
 
     Promise.all([
@@ -49,11 +54,9 @@ export default function BranchDetailPage() {
       .then(async ([bRes, cRes, tRes]) => {
         setBranch(bRes.data);
 
-        /** build unique tag list for the dropdown */
         const tags = Array.from(new Set(tRes.data.map((t) => t.name))).sort();
         setAllTags(tags);
 
-        /** attach tags on every commit */
         const commitsWithTags = await Promise.all(
           cRes.data.map(async (c) => ({
             ...c,
@@ -64,7 +67,7 @@ export default function BranchDetailPage() {
       })
       .catch((e) => {
         console.error(e);
-        setError('Failed to load branch or tags.');
+        setError('Failed to load branch or commits.');
       })
       .finally(() => setLoading(false));
   }, [branchId]);
@@ -79,12 +82,13 @@ export default function BranchDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 text-white">
-      <h2 className="text-2xl font-bold mb-2">Branch: {branch.name}</h2>
+      <h2 className="text-2xl font-bold mb-2">
+        Branch: {branch.name} ({commits.length} commits)
+      </h2>
       <p className="text-sm text-gray-400 mb-4">
         HEAD Commit ID: {branch.current_commit_id ?? 'None'}
       </p>
 
-      {/* Tag filter */}
       <div className="mb-4">
         <label className="block text-sm text-gray-300 mb-1">Filter by tag:</label>
         <select
@@ -101,7 +105,6 @@ export default function BranchDetailPage() {
         </select>
       </div>
 
-      {/* Commit list */}
       {visibleCommits.length > 0 ? (
         visibleCommits.map((c) => <CommitCard key={c.id} {...c} />)
       ) : (

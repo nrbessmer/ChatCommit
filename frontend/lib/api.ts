@@ -42,3 +42,10 @@ export const rollbackBranch = async (branchId: number, commitId: number) => {
   const res = await axios.post(`${API_BASE}/rollback/${branchId}/${commitId}`);
   return res.data;
 };
+/**
+ * Axios instance pointing at the FastAPI backend.
+ * You can override the URL in .env.local if you ever run the backend elsewhere.
+ */
+export const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_BASE || 'https://chatcommit.fly.dev',
+});

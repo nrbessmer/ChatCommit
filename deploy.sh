@@ -1,33 +1,37 @@
 #!/bin/bash
 
-set -e
+# ==== CONFIGURATION ====
+APP_NAME="chatcommit"
+FRONTEND_DIR="frontend"
+BACKEND_DIR="backend"
+VERCEL_PROJECT="chatcommit"  # Replace with your Vercel project name
+FLY_APP="chatcommit"         # Replace with your Fly.io app name
 
-echo "🧹 Cleaning old frontend build..."
-rm -rf frontend/.next app/frontend/build || true
+# ==== STEP 1: GIT PUSH ====
+echo "📦 Committing and pushing code to Git..."
+git add .
+git commit -m "🔄 Update and deploy latest changes"
+git push origin main || { echo "❌ Git push failed."; exit 1; }
 
-echo "🔨 Building frontend..."
-cd frontend
-npm install --legacy-peer-deps
-NEXT_DISABLE_ESLINT=true npm run build
+# ==== STEP 2: BUILD FRONTEND ====
+echo "🔧 Building frontend with yarn..."
+cd "$FRONTEND_DIR" || { echo "❌ Frontend directory not found."; exit 1; }
+
+yarn install
+yarn build || { echo "❌ Frontend build failed."; exit 1; }
+
+# ==== STEP 3: DEPLOY TO VERCEL ====
+echo "🚀 Deploying frontend to Vercel..."
+vercel --prod --confirm || { echo "❌ Vercel deployment failed."; exit 1; }
 cd ..
 
-echo "📦 Copying frontend build into backend..."
-mkdir -p app/frontend/build
-cp -r frontend/.next app/frontend/build/
-cp -r frontend/public app/frontend/build/
-cp frontend/next.config.ts app/frontend/build/ || true
+# ==== STEP 4: DEPLOY TO FLY.IO ====
+echo "🌍 Deploying backend to Fly.io..."
+cd "$BACKEND_DIR" || { echo "❌ Backend directory not found."; exit 1; }
 
-echo "🔃 Git check-in..."
-git add .
-read -p "Enter commit message: " commit_msg
-git commit -m "$commit_msg" || echo "⚠️  Nothing to commit"
-git push origin main
+fly deploy --app "$FLY_APP" || { echo "❌ Fly.io deployment failed."; exit 1; }
+cd ..
 
-echo "🚀 Deploying to Fly.io..."
-fly deploy
-fly status
-
-echo "✅ Deployment complete!"
-echo "🌐 Visit your app: https://chatcommit.fly.dev/"
-
+# ==== DONE ====
+echo "✅ Deployment completed successfully!"
 
