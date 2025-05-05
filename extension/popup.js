@@ -187,11 +187,12 @@ document.addEventListener("DOMContentLoaded", () => {
   viewBranchesBtn.onclick = () =>
     chrome.tabs.create({ url:"https://chat-commit.vercel.app/branches" });
 
-  // ─── Rollback/Timeline stubs ──────────────────────────────
-  document.getElementById("rollback-btn").onclick = () =>
-    alert("⏪ Rollback: Coming soon!");
-  document.getElementById("timeline-btn").onclick = () =>
-    alert("🕒 Timeline: Coming soon!");
+ // ─── Rollback/Timeline actions ──────────────────────────────
+document.getElementById("rollback-btn").onclick = () =>
+  chrome.tabs.create({ url: "https://chat-commit.vercel.app/rollback" });
+
+document.getElementById("timeline-btn").onclick = () =>
+  chrome.tabs.create({ url: "https://chat-commit.vercel.app/timeline" });
 
   // ─── Merge panel ──────────────────────────────────────────
   mergeBtn.onclick = async () => {
