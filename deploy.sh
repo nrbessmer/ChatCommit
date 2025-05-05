@@ -17,7 +17,7 @@ git push origin main || { echo "❌ Git push failed."; exit 1; }
 echo "🌍 Deploying backend to Fly.io..."
 cd "$BACKEND_DIR" || { echo "❌ Backend directory not found."; exit 1; }
 
-fly deploy --app '${FLY_APP}' --detach || { echo "❌ Fly.io deployment failed."; exit 1; }
+fly deploy --app '${FLY_APP}' --detach
 
 # ==== STEP 3: BUILD FRONTEND ====
 echo "🔧 Building frontend with yarn..."
