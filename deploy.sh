@@ -3,7 +3,7 @@
 # ==== CONFIGURATION ====
 APP_NAME="chatcommit"
 FRONTEND_DIR="frontend"
-BACKEND_DIR="backend"
+BACKEND_DIR="."
 VERCEL_PROJECT="chatcommit"  # Replace with your Vercel project name
 FLY_APP="chatcommit"         # Replace with your Fly.io app name
 
