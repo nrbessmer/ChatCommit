@@ -43,10 +43,6 @@ def get_commits_by_tag(tag_name: str, db: Session = Depends(get_db)):
         .all()
     )
     return commits
-from fastapi import Query
-from .schemas import TagResponse
-# …
-
 @router.get("/branch/{branch_id}", response_model=list[TagResponse])
 def tags_for_branch(branch_id: int, db: Session = Depends(get_db)):
     # Return unique tags for all commits on this branch
