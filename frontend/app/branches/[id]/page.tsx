@@ -25,6 +25,7 @@ export default function BranchDetailPage() {
   const { id } = useParams() as { id: string };
   const [branch, setBranch] = useState<Branch | null>(null);
   const [commits, setCommits] = useState<Commit[]>([]);
+  const [searchTag, setSearchTag] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -42,6 +43,10 @@ export default function BranchDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const filteredCommits = searchTag.trim()
+    ? commits.filter(c => c.tags?.some(tag => tag.toLowerCase().includes(searchTag.toLowerCase())))
+    : commits;
+
   if (loading) return <p className="p-6 text-white">Loading branch details…</p>;
   if (error)   return <p className="p-6 text-red-500">{error}</p>;
   if (!branch) return <p className="p-6 text-white">Branch not found.</p>;
@@ -52,9 +57,24 @@ export default function BranchDetailPage() {
       <p className="text-sm text-gray-400 mb-6">
         HEAD Commit ID: {branch.current_commit_id ?? 'None'}
       </p>
-      {commits.map(c => (
-        <CommitCard key={c.id} {...c} hideView />
-      ))}
+
+      <div className="mb-6">
+        <label htmlFor="tag-search" className="block text-sm mb-1">Search by Tag:</label>
+        <input
+          id="tag-search"
+          type="text"
+          placeholder="e.g. UI-fix"
+          value={searchTag}
+          onChange={e => setSearchTag(e.target.value)}
+          className="w-full p-2 rounded bg-gray-800 text-white border border-gray-600"
+        />
+      </div>
+
+      {filteredCommits.length > 0 ? (
+        filteredCommits.map(c => <CommitCard key={c.id} {...c} hideView />)
+      ) : (
+        <p className="text-gray-400">No commits match the tag filter.</p>
+      )}
     </div>
   );
 }

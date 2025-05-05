@@ -34,3 +34,12 @@ def list_tags(db: Session = Depends(get_db)):
 def tags_for_commit(commit_id: int, db: Session = Depends(get_db)):
     return db.query(Tag).filter(Tag.commit_id == commit_id).all()
 
+@router.get("/tag/commits/{tag_name}")
+def get_commits_by_tag(tag_name: str, db: Session = Depends(get_db)):
+    commits = (
+        db.query(Commit)
+        .join(Tag, Tag.commit_id == Commit.id)
+        .filter(Tag.name == tag_name)
+        .all()
+    )
+    return commits
