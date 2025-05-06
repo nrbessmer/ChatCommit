@@ -72,3 +72,15 @@ export const fetchTimeline = (params?: {
   start_date?: string;  // ISO‑8601
   end_date?: string;    // ISO‑8601
 }) => api.get('/timeline', { params });
+// --- keep the existing imports + code above -----------------------------
+
+/* ----------------------------------------------------------
+   Legacy helper (used by <HomePage>)
+   ---------------------------------------------------------- */
+import type { Commit } from '@/types';   // <‑‑ or copy the interface locally
+
+// OLD stub  : export const fetchCommits = fetchBranchCommits;
+export const fetchCommits = (branchId: number) =>
+  api
+    .get<Commit[]>(`/branch/${branchId}/commits`)
+    .then(res => res.data);             // <- setCommits now gets Commit[]
