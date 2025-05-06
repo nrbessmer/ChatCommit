@@ -15,7 +15,6 @@ import {
 
 type Commit = ApiCommit & { tags?: string[] }
 type Branch = ApiBranch
-type Tag = ApiTag
 
 export default function TimelinePage() {
   const [commits, setCommits] = useState<Commit[]>([])
@@ -23,28 +22,37 @@ export default function TimelinePage() {
   const [tags, setTags] = useState<string[]>([])
   const [selectedBranch, setSelectedBranch] = useState<string>('')
   const [selectedTag, setSelectedTag] = useState<string>('')
+  const [startDate, setStartDate] = useState<string>('')   // YYYY‑MM‑DD
+  const [endDate, setEndDate] = useState<string>('')       // YYYY‑MM‑DD
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string>('')
 
+  // whenever any filter changes, re‑fetch
   useEffect(() => {
     const load = async () => {
       setLoading(true)
+      setError('')
       try {
-        // all three return raw arrays
-        const [timelineData, branchList, tagList] = await Promise.all([
-          fetchTimeline(),
+        // build params object
+        const params: Record<string, any> = {}
+        if (selectedBranch) params.branch_id = Number(selectedBranch)
+        if (selectedTag)    params.tag       = selectedTag
+        if (startDate)      params.start_date = `${startDate}T00:00:00`
+        if (endDate)        params.end_date   = `${endDate}T23:59:59`
+
+        // fetch raw timeline, branch list, tag list in parallel
+        const [tlData, brList, tgList] = await Promise.all([
+          fetchTimeline(params),
           fetchBranches(),
           fetchTags()
         ])
 
-        setBranches(branchList)
-        setTags(
-          Array.from(new Set(tagList.map(t => t.name)))
-            .sort()
-        )
+        setBranches(brList)
+        setTags(Array.from(new Set(tgList.map(t => t.name))).sort())
 
+        // attach tags per commit
         const withTags = await Promise.all(
-          timelineData.map(async c => {
+          tlData.map(async c => {
             const ct = await fetchCommitTags(c.id)
             return { ...c, tags: ct.map(t => t.name) }
           })
@@ -52,29 +60,27 @@ export default function TimelinePage() {
         setCommits(withTags)
       } catch (err: any) {
         console.error(err)
-        setError(err.message || 'Failed to load timeline data.')
+        setError(err.message || 'Failed to load timeline')
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [])
-
-  const filtered = commits.filter(c => {
-    const okBranch = selectedBranch ? c.branch_id === Number(selectedBranch) : true
-    const okTag = selectedTag ? c.tags?.includes(selectedTag) : true
-    return okBranch && okTag
-  })
+  },
+  // dependencies: re‐run whenever a filter changes
+  [ selectedBranch, selectedTag, startDate, endDate ] )
 
   return (
     <div className="max-w-5xl mx-auto p-6 text-white">
       <h2 className="text-2xl font-bold mb-4">🕒 Timeline View</h2>
 
-      <div className="flex gap-4 mb-6">
+      {/* ─── Filters ───────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+        {/* Branch */}
         <div>
           <label className="block text-sm text-gray-400 mb-1">Branch</label>
           <select
-            className="bg-gray-800 text-white px-3 py-1 rounded"
+            className="bg-gray-800 text-white px-3 py-1 rounded w-full"
             value={selectedBranch}
             onChange={e => setSelectedBranch(e.target.value)}
           >
@@ -87,10 +93,11 @@ export default function TimelinePage() {
           </select>
         </div>
 
+        {/* Tag */}
         <div>
           <label className="block text-sm text-gray-400 mb-1">Tag</label>
           <select
-            className="bg-gray-800 text-white px-3 py-1 rounded"
+            className="bg-gray-800 text-white px-3 py-1 rounded w-full"
             value={selectedTag}
             onChange={e => setSelectedTag(e.target.value)}
           >
@@ -102,14 +109,37 @@ export default function TimelinePage() {
             ))}
           </select>
         </div>
+
+        {/* Start Date */}
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Date From</label>
+          <input
+            type="date"
+            className="bg-gray-800 text-white px-3 py-1 rounded w-full"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+          />
+        </div>
+
+        {/* End Date */}
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Date To</label>
+          <input
+            type="date"
+            className="bg-gray-800 text-white px-3 py-1 rounded w-full"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+          />
+        </div>
       </div>
 
+      {/* ─── Timeline List ─────────────────────────────────── */}
       {loading ? (
         <p>Loading…</p>
       ) : error ? (
         <p className="text-red-500">{error}</p>
-      ) : filtered.length > 0 ? (
-        filtered.map(c => <CommitCard key={c.id} {...c} />)
+      ) : commits.length > 0 ? (
+        commits.map(c => <CommitCard key={c.id} {...c} />)
       ) : (
         <p className="text-gray-400">No commits found.</p>
       )}
