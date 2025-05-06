@@ -1,76 +1,72 @@
 // frontend/lib/api.ts
+// ------------------------------------------------------------
+// Central place for every HTTP call to the FastAPI backend.
+//
+// • All helper functions return axios promises → .then(res => res.data)
+// • Every collection‑style endpoint *must* have a trailing “/” to
+//   skip FastAPI’s automatic 307 redirect (axios + CORS dislike it).
+// ------------------------------------------------------------
+
 import axios from 'axios';
 
-////////////////////////////////////////////////////////////////////////////////
-// 1️⃣  Base URL – keep the trailing “/” so               << IMPORTANT
-//     every request we build is `/something/` not `/something`
-////////////////////////////////////////////////////////////////////////////////
-const API_BASE = 'https://chatcommit.fly.dev/';
+/* ----------------------------------------------------------
+   Base URL
+   ---------------------------------------------------------- */
+export const API_BASE =
+  // allow “NEXT_PUBLIC_API_BASE=https://some-other-backend” at build time
+  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') ||
+  'https://chatcommit.fly.dev';
 
-////////////////////////////////////////////////////////////////////////////////
-// 2️⃣  Low‑level axios instance used across the app
-////////////////////////////////////////////////////////////////////////////////
-export const api = axios.create({
-  baseURL: API_BASE,
-});
+/* Shared axios instance */
+export const api = axios.create({ baseURL: API_BASE });
 
-////////////////////////////////////////////////////////////////////////////////
-// 3️⃣  Convenience helpers (all with *trailing* slashes)
-////////////////////////////////////////////////////////////////////////////////
+/* ----------------------------------------------------------
+   Branches
+   ---------------------------------------------------------- */
+export const fetchBranches      = () => api.get('/branch/');            // GET list
+export const fetchBranch        = (id: number) => api.get(`/branch/${id}`);
+export const createBranch       = (name: string, baseId?: number) =>
+  api.post('/branch/', { name, base_commit_id: baseId });
 
-// Branches ----------------------------------------------------------
-export const fetchBranches = async () => {
-  const { data } = await api.get('/branch/');
-  return data;
-};
+/* ----------------------------------------------------------
+   Commits
+   ---------------------------------------------------------- */
+export const fetchBranchCommits = (branchId: number) =>
+  api.get(`/branch/${branchId}/commits`);
+export const fetchCommit        = (id: number) => api.get(`/commit/${id}`);
+export const createCommit       = (data: {
+  commit_message: string;
+  conversation_context: any;
+  branch_id?: number;
+}) => api.post('/commit/', data);
 
-export const fetchBranchCommits = async (branchId: number) => {
-  const { data } = await api.get(`/branch/${branchId}/commits/`);
-  return data;
-};
+/* ----------------------------------------------------------
+   Rollback
+   ---------------------------------------------------------- */
+export const rollbackBranch = (branchId: number, commitId: number) =>
+  api.post(`/rollback/${branchId}/${commitId}`);
 
-// Commits -----------------------------------------------------------
-export const fetchCommits = async (branchId: number) =>
-  fetchBranchCommits(branchId); // alias
+/* ----------------------------------------------------------
+   Tags
+   ---------------------------------------------------------- */
+export const fetchTags          = () => api.get('/tag/');               // GET list of all tags
+export const fetchCommitTags    = (commitId: number) => api.get(`/tag/commit/${commitId}`);
+export const fetchBranchTags    = (branchId: number) => api.get(`/tag/branch/${branchId}`);
+export const createTag          = (name: string, commitId: number) =>
+  api.post('/tag/', { name, commit_id: commitId });
 
-export const createCommit = async (
-  commit_message: string,
-  conversation_context: any,
-  branch_id?: number,
-) => {
-  const payload: Record<string, any> = {
-    commit_message,
-    conversation_context,
-  };
-  if (branch_id) payload.branch_id = branch_id;
-  const { data } = await api.post('/commit/', payload);
-  return data;
-};
+/* ----------------------------------------------------------
+   Merge
+   ---------------------------------------------------------- */
+export const mergeBranches = (sourceId: number, targetId: number) =>
+  api.post('/merge', null, { params: { source_branch_id: sourceId, target_branch_id: targetId } });
 
-// Rollback ----------------------------------------------------------
-export const rollbackBranch = async (branchId: number, commitId: number) => {
-  const { data } = await api.post(`/rollback/${branchId}/${commitId}/`);
-  return data;
-};
-
-// Tags --------------------------------------------------------------
-export const fetchAllTags = async () => {
-  const { data } = await api.get('/tag/');
-  return data;
-};
-
-export const fetchTagsForCommit = async (commitId: number) => {
-  const { data } = await api.get(`/tag/commit/${commitId}/`);
-  return data;
-};
-
-export const fetchTagsForBranch = async (branchId: number) => {
-  const { data } = await api.get(`/tag/branch/${branchId}/`);
-  return data;
-};
-
-// Timeline ----------------------------------------------------------
-export const fetchTimeline = async () => {
-  const { data } = await api.get('/timeline');
-  return data;
-};
+/* ----------------------------------------------------------
+   Timeline
+   ---------------------------------------------------------- */
+export const fetchTimeline = (params?: {
+  branch_id?: number;
+  tag?: string;
+  start_date?: string;  // ISO‑8601
+  end_date?: string;    // ISO‑8601
+}) => api.get('/timeline', { params });

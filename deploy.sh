@@ -19,7 +19,7 @@ echo "🌍  Deploying backend to Fly.io…"
 (
   cd "$BACKEND_DIR"
   # --detach → don’t wait for health‑checks; run in a subshell (&) so we can continue
-  fly deploy --app "$FLY_APP" --detach &
+  fly deploy --app "$FLY_APP" --detach
 )
 
 # ───── STEP 3: BUILD FRONTEND ────────────────────────────────────────────────
@@ -31,10 +31,5 @@ yarn build
 # ───── STEP 4: DEPLOY FRONTEND (Vercel) ──────────────────────────────────────
 echo "🚀  Deploying frontend to Vercel…"
 vercel --prod --confirm --scope "$VERCEL_PROJECT"
-
-cd - > /dev/null  # return to repo root quietly
-
-# ───── WAIT FOR BACKGROUND FLY DEPLOY (optional) ────────────────────────────
-wait   # comment this out if you truly don’t care whether Fly finishes
 
 echo "✅  Deployment pipeline completed successfully!"
