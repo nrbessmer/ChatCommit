@@ -1,36 +1,38 @@
 #!/usr/bin/env bash
-set -e  # exit on first error
+set -euo pipefail
 
-# ───── CONFIG ────────────────────────────────────────────────────────────────
-APP_NAME="chatcommit"      # currently unused – but handy if you need it
+# ==== CONFIGURATION ====
 FRONTEND_DIR="frontend"
 BACKEND_DIR="."
-VERCEL_PROJECT="chatcommit" # update if your Vercel project differs
-FLY_APP="chatcommit"        # your Fly.io app name
-export NEXT_DISABLE_ESLINT=true
+FLY_APP="chatcommit"
+VERCEL_SCOPE="nicholas-bessmers-projects"  # ← your Vercel scope
 
-# ───── STEP 1: PUSH TO GIT ───────────────────────────────────────────────────
-echo "📦  Committing and pushing code to Git…"
+# ==== STEP 1: COMMIT & PUSH ====
+echo "📦  Committing and pushing code…"
 git add .
-git commit -m "🔄 Update and deploy latest changes" || echo "ℹ️  Nothing to commit."
+git commit -m "🔄 Update and deploy latest changes" || true
 git push origin main
 
-# ───── STEP 2: DEPLOY BACKEND (Fly.io) ───────────────────────────────────────
-echo "🌍  Deploying backend to Fly.io…"
-(
-  cd "$BACKEND_DIR"
-  # --detach → don’t wait for health‑checks; run in a subshell (&) so we can continue
-  fly deploy --app "$FLY_APP" --detach
-)
+# ==== STEP 2: DEPLOY BACKEND TO FLY.IO ====
+echo "🌍  Deploying backend to Fly.io (detached)…"
+cd "$BACKEND_DIR"
+fly deploy --app "$FLY_APP" --detach
 
-# ───── STEP 3: BUILD FRONTEND ────────────────────────────────────────────────
-echo "🔧  Building frontend with Yarn…"
+# ==== STEP 3: BUILD FRONTEND ====
+echo "🔧  Building frontend…"
 cd "$FRONTEND_DIR"
 yarn install --frozen-lockfile
 yarn build
 
-# ───── STEP 4: DEPLOY FRONTEND (Vercel) ──────────────────────────────────────
-echo "🚀  Deploying frontend to Vercel…"
-vercel --prod --confirm --scope "$VERCEL_PROJECT"
+# ==== STEP 4: LINK PROJECT TO VERCEL (once) ====
+if [ ! -f ".vercel/project.json" ]; then
+  echo "🔗  Linking to Vercel scope ‘$VERCEL_SCOPE’…"
+  vercel link --scope "$VERCEL_SCOPE" --yes
+fi
 
-echo "✅  Deployment pipeline completed successfully!"
+# ==== STEP 5: DEPLOY FRONTEND TO VERCEL ====
+echo "🚀  Deploying frontend to Vercel…"
+vercel deploy --prod --confirm --scope "$VERCEL_SCOPE"
+
+# ==== DONE ====
+echo "✅  All done! Backend on Fly → https://$FLY_APP.fly.dev/  •  Frontend on Vercel → https://$VERCEL_SCOPE.vercel.app/"
