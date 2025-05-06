@@ -1,104 +1,108 @@
+// app/commit/[id]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
-import CommitCard from '@/components/CommitCard';
+import TagForm from '@/components/TagForm';
+import TagList from '@/components/TagList';
 
-interface Commit {
+interface CommitData {
   id: number;
   commit_hash: string;
   commit_message: string;
   created_at: string;
-  branch_id?: number;
-  conversation_context?: {
-    messages: string[];
-  };
+  conversation_context: Record<string, any>;
+}
+
+interface Tag {
+  id: number;
+  name: string;
+  commit_id: number;
 }
 
 export default function CommitDetailPage() {
   const { id } = useParams() as { id: string };
+  const commitId = Number(id);
+  const [commit, setCommit] = useState<CommitData | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showRawJson, setShowRawJson] = useState(false);
   const router = useRouter();
 
-  const [commit, setCommit] = useState<Commit | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
+  // Fetch commit + tags
   useEffect(() => {
-    if (!id) return;
-    axios
-      .get<Commit>(`https://chatcommit.fly.dev/commit/${id}`)
-      .then(res => setCommit(res.data))
-      .catch(err => {
-        console.error('Error fetching commit:', err);
-        setError('Failed to load commit.');
+    if (!commitId) {
+      setLoading(false);
+      return;
+    }
+
+    Promise.all([
+      axios.get<CommitData>(`https://chatcommit.fly.dev/commit/${commitId}`),
+      axios.get<Tag[]>(`https://chatcommit.fly.dev/tag/commit/${commitId}`)
+    ])
+      .then(([commitRes, tagRes]) => {
+        setCommit(commitRes.data);
+        setTags(tagRes.data);
+      })
+      .catch((err) => {
+        console.error('Error loading commit or tags:', err);
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [commitId]);
 
-  const copyContext = () => {
-    if (!commit?.conversation_context) return;
-    const text = JSON.stringify(commit.conversation_context, null, 2);
-    navigator.clipboard.writeText(text)
-      .then(() => alert('Conversation context copied!'))
-      .catch(() => alert('Failed to copy context.'));
-  };
-
-  if (loading) return <p className="p-6 bg-gray-900 text-gray-300">Loading commit…</p>;
-  if (error)   return <p className="p-6 bg-gray-900 text-red-500">{error}</p>;
-  if (!commit) return <p className="p-6 bg-gray-900 text-gray-300">Commit not found.</p>;
+  if (loading) {
+    return <p className="p-6 text-white">Loading...</p>;
+  }
+  if (!commit) {
+    return <p className="p-6 text-red-500">Commit not found.</p>;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
-      <div className="max-w-3xl mx-auto bg-gray-800 p-6 rounded-lg shadow-xl text-gray-100">
-        <h2 className="text-2xl font-bold mb-4">Commit Details</h2>
+    <div className="max-w-3xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-md">
+      <button
+        className="text-sm text-blue-400 hover:underline mb-4"
+        onClick={() => router.push('/branches')}
+      >
+        ← Back to Branch
+      </button>
 
-        {/* Commit summary */}
-        <CommitCard {...commit} hideView />
+      <h1 className="text-2xl font-bold mb-4">Commit Details</h1>
 
-        {/* Conversation Context */}
-        {commit.conversation_context?.messages && (
-          <div className="mt-6">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold text-white">Conversation Context</h3>
-              <button
-                onClick={copyContext}
-                aria-label="Copy conversation context"
-                className="inline-flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h6m4 0h2a2 2 0 012 2v8a2 2 0 01-2 2h-2M8 12h6m-6 4h6"
-                  />
-                </svg>
-                <span className="text-sm">Copy</span>
-              </button>
-            </div>
-            <div className="bg-gray-700 p-4 rounded max-h-64 overflow-y-auto text-gray-200 font-mono text-sm">
-              {commit.conversation_context.messages.map((msg, i) => (
-                <p key={i} className="mb-2">{msg}</p>
-              ))}
-            </div>
-          </div>
-        )}
+      <div className="p-4 rounded border border-gray-700 bg-gray-800 mb-6">
+        <p className="text-gray-400 text-sm mb-1">Commit Hash:</p>
+        <p className="font-mono text-blue-300 text-sm mb-3">
+          {commit.commit_hash}
+        </p>
 
-        {/* Back to Branch */}
-        {commit.branch_id && (
-          <button
-            onClick={() => router.push(`/branches/${commit.branch_id}`)}
-            className="mt-6 text-blue-400 hover:underline"
-          >
-            ← Back to Branch
-          </button>
+        <p className="text-gray-400 text-sm mb-1">Message:</p>
+        <p className="text-lg font-semibold text-gray-100 mb-3">
+          {commit.commit_message}
+        </p>
+
+        <p className="text-gray-400 text-sm mb-1">Created At:</p>
+        <p className="text-sm text-gray-200 mb-3">
+          {new Date(commit.created_at).toLocaleString()}
+        </p>
+
+        {/* Tag form + list */}
+        <div className="mb-4">
+          <TagForm commitId={commit.id} onCreated={() => {/* refresh tags */}} />
+          <TagList commitId={commit.id} />
+        </div>
+
+        {/* Raw JSON toggle */}
+        <button
+          className="bg-blue-600 text-white px-3 py-1 rounded mb-4"
+          onClick={() => setShowRawJson((v) => !v)}
+        >
+          {showRawJson ? 'Hide Raw JSON' : 'Show Raw JSON'}
+        </button>
+
+        {showRawJson && (
+          <pre className="bg-gray-700 border border-gray-600 p-4 rounded text-sm text-green-200 overflow-auto">
+            {JSON.stringify(commit.conversation_context, null, 2)}
+          </pre>
         )}
       </div>
     </div>
