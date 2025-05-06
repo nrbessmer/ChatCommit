@@ -4,6 +4,7 @@
     "next": "^15.2.4"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.5",
     "eslint-config-next": "^15.2.4"
   }
 }
