@@ -33,6 +33,8 @@ export const createBranch       = (name: string, baseId?: number) =>
    ---------------------------------------------------------- */
 export const fetchBranchCommits = (branchId: number) =>
   api.get(`/branch/${branchId}/commits`);
+/* legacy alias – remove once every import is switched */
+export const fetchCommits = fetchBranchCommits;
 export const fetchCommit        = (id: number) => api.get(`/commit/${id}`);
 export const createCommit       = (data: {
   commit_message: string;

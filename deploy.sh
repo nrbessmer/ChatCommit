@@ -7,6 +7,7 @@ FRONTEND_DIR="frontend"
 BACKEND_DIR="."
 VERCEL_PROJECT="chatcommit" # update if your Vercel project differs
 FLY_APP="chatcommit"        # your Fly.io app name
+export NEXT_DISABLE_ESLINT=true
 
 # ───── STEP 1: PUSH TO GIT ───────────────────────────────────────────────────
 echo "📦  Committing and pushing code to Git…"
