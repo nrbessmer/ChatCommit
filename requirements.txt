@@ -4,4 +4,4 @@ sqlalchemy
 pydantic
 python-dotenv
 email-validator
-
+pyjwt
