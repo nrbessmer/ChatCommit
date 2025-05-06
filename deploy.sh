@@ -1,36 +1,40 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e  # exit on first error
 
-# ==== CONFIGURATION ====
-APP_NAME="chatcommit"
+# ───── CONFIG ────────────────────────────────────────────────────────────────
+APP_NAME="chatcommit"      # currently unused – but handy if you need it
 FRONTEND_DIR="frontend"
 BACKEND_DIR="."
-VERCEL_PROJECT="chatcommit"  # Replace with your Vercel project name
-FLY_APP="chatcommit"         # Replace with your Fly.io app name
+VERCEL_PROJECT="chatcommit" # update if your Vercel project differs
+FLY_APP="chatcommit"        # your Fly.io app name
 
-# ==== STEP 1: GIT PUSH ====
-echo "📦 Committing and pushing code to Git..."
+# ───── STEP 1: PUSH TO GIT ───────────────────────────────────────────────────
+echo "📦  Committing and pushing code to Git…"
 git add .
-git commit -m "🔄 Update and deploy latest changes"
-git push origin main || { echo "❌ Git push failed."; exit 1; }
+git commit -m "🔄 Update and deploy latest changes" || echo "ℹ️  Nothing to commit."
+git push origin main
 
-#Step 2 deploy t fly
-echo "🌍 Deploying backend to Fly.io..."
-cd "$BACKEND_DIR" || { echo "❌ Backend directory not found."; exit 1; }
+# ───── STEP 2: DEPLOY BACKEND (Fly.io) ───────────────────────────────────────
+echo "🌍  Deploying backend to Fly.io…"
+(
+  cd "$BACKEND_DIR"
+  # --detach → don’t wait for health‑checks; run in a subshell (&) so we can continue
+  fly deploy --app "$FLY_APP" --detach &
+)
 
-fly deploy --app '${FLY_APP}' --detach
+# ───── STEP 3: BUILD FRONTEND ────────────────────────────────────────────────
+echo "🔧  Building frontend with Yarn…"
+cd "$FRONTEND_DIR"
+yarn install --frozen-lockfile
+yarn build
 
-# ==== STEP 3: BUILD FRONTEND ====
-echo "🔧 Building frontend with yarn..."
-cd "$FRONTEND_DIR" || { echo "❌ Frontend directory not found."; exit 1; }
+# ───── STEP 4: DEPLOY FRONTEND (Vercel) ──────────────────────────────────────
+echo "🚀  Deploying frontend to Vercel…"
+vercel --prod --confirm --scope "$VERCEL_PROJECT"
 
-yarn install
-yarn build || { echo "❌ Frontend build failed."; exit 1; }
+cd - > /dev/null  # return to repo root quietly
 
-# ==== STEP 4: DEPLOY TO VERCEL ====
-echo "🚀 Deploying frontend to Vercel..."
-vercel --prod --confirm || { echo "❌ Vercel deployment failed."; exit 1; }
-cd ..
+# ───── WAIT FOR BACKGROUND FLY DEPLOY (optional) ────────────────────────────
+wait   # comment this out if you truly don’t care whether Fly finishes
 
-# ==== DONE ====
-echo "✅ Deployment completed successfully!"
-
+echo "✅  Deployment pipeline completed successfully!"
