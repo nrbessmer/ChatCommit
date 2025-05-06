@@ -12,7 +12,10 @@ interface CommitData {
   commit_hash: string;
   commit_message: string;
   created_at: string;
-  conversation_context: Record<string, any>;
+  conversation_context: {
+    messages?: string[];
+    [key: string]: any;
+  };
 }
 
 interface Tag {
@@ -28,9 +31,9 @@ export default function CommitDetailPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRawJson, setShowRawJson] = useState(false);
+  const [showPretty, setShowPretty] = useState(true);
   const router = useRouter();
 
-  // Fetch commit + tags
   useEffect(() => {
     if (!commitId) {
       setLoading(false);
@@ -41,63 +44,74 @@ export default function CommitDetailPage() {
       axios.get<CommitData>(`https://chatcommit.fly.dev/commit/${commitId}`),
       axios.get<Tag[]>(`https://chatcommit.fly.dev/tag/commit/${commitId}`)
     ])
-      .then(([commitRes, tagRes]) => {
-        setCommit(commitRes.data);
-        setTags(tagRes.data);
+      .then(([cRes, tRes]) => {
+        setCommit(cRes.data);
+        setTags(tRes.data);
       })
-      .catch((err) => {
-        console.error('Error loading commit or tags:', err);
-      })
+      .catch(console.error)
       .finally(() => setLoading(false));
   }, [commitId]);
 
-  if (loading) {
-    return <p className="p-6 text-white">Loading...</p>;
-  }
-  if (!commit) {
-    return <p className="p-6 text-red-500">Commit not found.</p>;
-  }
+  if (loading) return <p className="p-6 text-white">Loading...</p>;
+  if (!commit) return <p className="p-6 text-red-500">Commit not found.</p>;
+
+  const msgs = commit.conversation_context.messages || [];
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-md">
       <button
         className="text-sm text-blue-400 hover:underline mb-4"
-        onClick={() => router.push('/branches')}
+        onClick={() => router.back()}
       >
-        ← Back to Branch
+        ← Back
       </button>
 
       <h1 className="text-2xl font-bold mb-4">Commit Details</h1>
-
       <div className="p-4 rounded border border-gray-700 bg-gray-800 mb-6">
-        <p className="text-gray-400 text-sm mb-1">Commit Hash:</p>
-        <p className="font-mono text-blue-300 text-sm mb-3">
-          {commit.commit_hash}
-        </p>
+        <p className="text-gray-400 text-sm mb-1">Hash:</p>
+        <p className="font-mono text-blue-300 text-sm mb-3">{commit.commit_hash}</p>
 
         <p className="text-gray-400 text-sm mb-1">Message:</p>
-        <p className="text-lg font-semibold text-gray-100 mb-3">
-          {commit.commit_message}
-        </p>
+        <p className="text-lg font-semibold text-gray-100 mb-3">{commit.commit_message}</p>
 
-        <p className="text-gray-400 text-sm mb-1">Created At:</p>
-        <p className="text-sm text-gray-200 mb-3">
+        <p className="text-gray-400 text-sm mb-1">Created:</p>
+        <p className="text-sm text-gray-200 mb-4">
           {new Date(commit.created_at).toLocaleString()}
         </p>
 
-        {/* Tag form + list */}
         <div className="mb-4">
-          <TagForm commitId={commit.id} onCreated={() => {/* refresh tags */}} />
+          <TagForm commitId={commit.id} onCreated={() => {/* refresh tags logic */}} />
           <TagList commitId={commit.id} />
         </div>
 
-        {/* Raw JSON toggle */}
-        <button
-          className="bg-blue-600 text-white px-3 py-1 rounded mb-4"
-          onClick={() => setShowRawJson((v) => !v)}
-        >
-          {showRawJson ? 'Hide Raw JSON' : 'Show Raw JSON'}
-        </button>
+        <div className="flex gap-2 mb-4">
+          <button
+            className="bg-green-600 text-white px-3 py-1 rounded"
+            onClick={() => setShowPretty((v) => !v)}
+          >
+            {showPretty ? 'Hide Messages' : 'Show Messages'}
+          </button>
+          <button
+            className="bg-blue-600 text-white px-3 py-1 rounded"
+            onClick={() => setShowRawJson((v) => !v)}
+          >
+            {showRawJson ? 'Hide Raw JSON' : 'Show Raw JSON'}
+          </button>
+        </div>
+
+        {showPretty && (
+          <div className="mb-4 space-y-2">
+            {msgs.length > 0 ? (
+              msgs.map((m, i) => (
+                <p key={i} className="bg-gray-700 p-2 rounded text-sm leading-snug">
+                  {m}
+                </p>
+              ))
+            ) : (
+              <p className="text-gray-500 text-sm">No messages.</p>
+            )}
+          </div>
+        )}
 
         {showRawJson && (
           <pre className="bg-gray-700 border border-gray-600 p-4 rounded text-sm text-green-200 overflow-auto">
