@@ -1,16 +1,24 @@
-# app/routers/commit.py
 from fastapi import APIRouter, Depends, HTTPException
-router = APIRouter()
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Commit, Branch
+from ..models import Commit, Branch, User
 from ..schemas import CommitCreate, CommitResponse
 import hashlib
+import jwt
+from jose import JWTError
 from datetime import datetime, timezone
 from typing import List
+
+# Import your configuration - adjust the path as needed
+from ..config import SECRET_KEY, ALGORITHM
+
 router = APIRouter()
-@router.get("/", response_model=list[CommitResponse])
+
+# Define OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+@router.get("/", response_model=List[CommitResponse])
 def list_commits(db: Session = Depends(get_db)):
     return db.query(Commit).order_by(Commit.created_at.desc()).all()
 
@@ -58,6 +66,7 @@ def get_commit(commit_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Commit not found")
     return commit
     
+# Note: This is a duplicate route from the first one, you may want to remove this
 @router.get("/", response_model=List[CommitResponse])
 def list_commits(db: Session = Depends(get_db)):
     return db.query(Commit).order_by(Commit.created_at.desc()).all()
