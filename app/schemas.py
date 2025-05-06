@@ -1,5 +1,7 @@
 #File: app/schemas.py
-from pydantic import BaseModel
+# app/schemas.py
+
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
@@ -23,6 +25,7 @@ class CommitResponse(BaseModel):
     class Config:
         orm_mode = True
 
+
 class BranchCreate(BaseModel):
     name: str
     base_commit_id: Optional[int] = None
@@ -34,18 +37,49 @@ class BranchResponse(BaseModel):
 
     class Config:
         orm_mode = True
-        
-# app/schemas.py
 
-from pydantic import BaseModel
-from datetime import datetime
 
 class TagCreate(BaseModel):
     name: str
     commit_id: int
 
-class TagResponse(TagCreate):
+class TagResponse(BaseModel):
     id: int
+    name: str
+    commit_id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
+
+class UserRegister(BaseModel):
+    full_name: str
+    address: str
+    email: EmailStr
+    company: str
+    password: str
+
+class UserRegisterResponse(BaseModel):
+    message: str
+
+    class Config:
+        orm_mode = True
+        
+class UserRead(BaseModel):
+    id: int
+    full_name: str
+    address: str
+    email: EmailStr
+    company: str
+    subscribed: bool
+    date_subscribed: Optional[datetime]
+    date_subscription_expires: Optional[datetime]
+
+    class Config:
+        orm_mode = True
+        
+class UserActivateResponse(BaseModel):
+    message: str
+    
+    class Config:
+        orm_mode = True
