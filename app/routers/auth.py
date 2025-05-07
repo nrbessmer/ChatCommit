@@ -1,6 +1,7 @@
 # app/routers/auth.py
 from fastapi import APIRouter, HTTPException, Depends, status
 from passlib.context import CryptContext
+from datetime import timedelta
 
 from sqlalchemy.orm import Session
 from ..database import get_db
