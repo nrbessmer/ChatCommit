@@ -10,7 +10,8 @@ from datetime import datetime, timezone
 from typing import List
 
 # Import your configuration - adjust the path as needed
-from ..config import SECRET_KEY, ALGORITHM
+from app.config import SECRET_KEY, ALGORITHM
+
 
 router = APIRouter()
 
