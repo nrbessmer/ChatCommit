@@ -36,15 +36,16 @@ function SubscriptionForm() {
       return
     }
 
-    try {
-      const res = await createSubscription({
-        paymentMethodId: paymentMethod.id,
-        planId: plan,
-      })
-      setMessage(`✅ Subscribed until ${new Date(res.date_subscription_expires * 1000).toLocaleDateString()}`)
-    } catch (err) {
-      setMessage('❌ Subscription failed. Please try again.')
-    }
+   try {
+  const res = await createSubscription({
+    paymentMethodId: paymentMethod.id,
+    planId: plan,
+  })
+  setMessage(`✅ Subscribed until ${new Date(res.date_subscription_expires).toLocaleDateString()}`)
+} catch (err) {
+  setMessage('❌ Subscription failed. Please try again.')
+}
+
 
     setLoading(false)
   }
