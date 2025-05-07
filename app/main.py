@@ -8,7 +8,8 @@ import os
 
 from .database import SessionLocal, engine
 from .models import Base, Commit, Branch  # <-- Add Base
-from .routers import commit, branch, rollback, tag, timeline
+from app.routers import commit, branch, rollback, tag, timeline, stripe, user, auth
+
 
 app = FastAPI(redirect_slashes=True)  # or just omit the param (default is True)
 
