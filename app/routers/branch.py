@@ -2,18 +2,22 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
+
 from ..database import get_db
 from ..models import Branch, Commit
 from ..schemas import BranchCreate, BranchResponse, CommitResponse
 from app.routers.auth import get_current_user
 
-router = APIRouter(
-    prefix="/branch",
-    tags=["branch"],
-)
+router = APIRouter()
 
 @router.post("/", response_model=BranchResponse)
-def create_branch(branch: BranchCreate, db: Session = Depends(get_db)):
+def create_branch(
+    branch: BranchCreate,
+    db: Session = Depends(get_db),
+    # if you want to enforce login:
+    # current_user=Depends(get_current_user)
+):
     if branch.base_commit_id is not None:
         base_commit = db.query(Commit).filter(Commit.id == branch.base_commit_id).first()
         if not base_commit:
@@ -29,13 +33,20 @@ def create_branch(branch: BranchCreate, db: Session = Depends(get_db)):
     return db_branch
 
 
-@router.get("/", response_model=list[BranchResponse])
-def list_branches(db: Session = Depends(get_db)):
+@router.get("/", response_model=List[BranchResponse])
+def list_branches(
+    db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user)
+):
     return db.query(Branch).all()
 
 
-@router.get("/{branch_id}/commits", response_model=list[CommitResponse])
-def get_commits_for_branch(branch_id: int, db: Session = Depends(get_db)):
+@router.get("/{branch_id}/commits", response_model=List[CommitResponse])
+def get_commits_for_branch(
+    branch_id: int,
+    db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user)
+):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
@@ -50,7 +61,11 @@ def get_commits_for_branch(branch_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{branch_id}/head", response_model=dict)
-def get_branch_head(branch_id: int, db: Session = Depends(get_db)):
+def get_branch_head(
+    branch_id: int,
+    db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user)
+):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
@@ -61,9 +76,15 @@ def get_branch_head(branch_id: int, db: Session = Depends(get_db)):
         "head_commit": commit
     }
 
+
 @router.get("/{branch_id}", response_model=BranchResponse)
-def get_branch(branch_id: int, db: Session = Depends(get_db)):
+def get_branch(
+    branch_id: int,
+    db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user)
+):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
     return branch
+
