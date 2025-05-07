@@ -8,9 +8,10 @@ from datetime import datetime
 class Token(BaseModel):
     access_token: str
     token_type: strclass
-    ConversationContext(BaseModel):
-    messages: Optional[List[str]] = []
-
+    
+class ConversationContext(BaseModel):
+    messages: list[str]
+    source: str
 
 class CommitCreate(BaseModel):
     commit_message: str
