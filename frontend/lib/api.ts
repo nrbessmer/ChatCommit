@@ -73,19 +73,19 @@ export interface UserProfile {
 
 // Register a new user
 export const registerUser = (data: UserRegisterPayload): Promise<AuthResponse> =>
-  api.post<AuthResponse>('/users/register', data)
+  api.post<AuthResponse>('/users/register', data).then(res => res.data)
 
 // Log in (returns token)
 export const loginUser = (data: UserLoginPayload): Promise<AuthResponse> =>
-  api.post<AuthResponse>('/users/login', data)
+  api.post<AuthResponse>('/users/login', data).then(res => res.data)
 
 // Fetch current user's profile (requires Authorization header)
 export const fetchUserProfile = (): Promise<UserProfile> =>
-  api.get<UserProfile>('/users/me')
+  api.get<UserProfile>('/users/me').then(res => res.data)
 
-// Request the browser‑extension install instructions via email
 export const sendExtensionInstructions = (): Promise<void> =>
-  api.post<void>('/users/extension-instructions')
+  api.post<void>('/users/extension-instructions').then(res => res.data)
+
 
 /* ──────────────────────────────────────────────────────────
    Subscription
