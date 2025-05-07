@@ -1,111 +1,73 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { loadStripe } from '@stripe/stripe-js'
 import {
-  fetchSubscription,
-  createSubscription,
-  fetchUserProfile,
-} from '@/lib/api'
+  Elements,
+  CardElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js'
+import { createSubscription } from '@/lib/api'
 
-export default function SubscriptionPage() {
-  const router = useRouter()
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
-  const [planId, setPlanId] = useState('basic-monthly')
-  const [paymentMethodId, setPaymentMethodId] = useState('') // stub for PM
-  const [status, setStatus] = useState<string | null>(null)
+function SubscriptionForm() {
+  const stripe = useStripe()
+  const elements = useElements()
   const [loading, setLoading] = useState(false)
-  const [sub, setSub] = useState<null | {
-    date_subscribed: string
-    date_subscription_expires: string
-  }>(null)
+  const [message, setMessage] = useState('')
 
-  useEffect(() => {
-    // on mount, check existing subscription
-    fetchSubscription()
-      .then((data) => setSub(data))
-      .catch(() => {})
-  }, [])
-
-  const handleSubscribe = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setStatus(null)
+  const handleSubscribe = async () => {
     setLoading(true)
+    const cardElement = elements?.getElement(CardElement)
+
+    if (!stripe || !cardElement) return
+
+    const { error, paymentMethod } = await stripe.createPaymentMethod({
+      type: 'card',
+      card: cardElement,
+    })
+
+    if (error || !paymentMethod) {
+      setMessage('Payment error.')
+      setLoading(false)
+      return
+    }
 
     try {
-      const result = await createSubscription({ planId, paymentMethodId })
-      setSub({
-        date_subscribed: result.date_subscribed,
-        date_subscription_expires: result.date_subscription_expires,
+      const res = await createSubscription({
+        paymentMethodId: paymentMethod.id,
+        planId: 'pro_annual', // hardcoded plan ID
       })
-      setStatus('Subscribed successfully!')
-      // refresh profile
-      await fetchUserProfile()
-    } catch (err: any) {
-      setStatus(err.response?.data?.detail || 'Subscription failed')
-    } finally {
-      setLoading(false)
+      setMessage(`Subscribed until ${res.date_subscription_expires}`)
+    } catch {
+      setMessage('Subscription failed')
     }
+
+    setLoading(false)
   }
 
-  // if already subscribed, show details
-  if (sub) {
-    return (
-      <div className="max-w-md mx-auto p-6 bg-gray-900 text-gray-100 rounded">
-        <h1 className="text-2xl mb-4">Your Subscription</h1>
-        <p>Started: {new Date(sub.date_subscribed).toLocaleDateString()}</p>
-        <p>Expires: {new Date(sub.date_subscription_expires).toLocaleDateString()}</p>
-        <button
-          className="mt-4 bg-green-600 py-2 rounded"
-          onClick={() => router.push('/')}
-        >
-          Go to Dashboard
-        </button>
-      </div>
-    )
-  }
-
-  // otherwise show subscribe form
   return (
-    <div className="max-w-md mx-auto p-6 bg-gray-900 text-gray-100 rounded">
-      <h1 className="text-2xl mb-4">Subscribe</h1>
-
-      <form onSubmit={handleSubscribe} className="space-y-4">
-        <div>
-          <label>Plan</label>
-          <select
-            value={planId}
-            onChange={(e) => setPlanId(e.target.value)}
-            className="w-full bg-gray-800 p-2 rounded"
-          >
-            <option value="basic-monthly">Basic Monthly</option>
-            <option value="pro-annual">Pro Annual</option>
-          </select>
-        </div>
-
-        <div>
-          <label>Payment Method ID</label>
-          <input
-            type="text"
-            required
-            placeholder="pm_… from Stripe.js"
-            value={paymentMethodId}
-            onChange={(e) => setPaymentMethodId(e.target.value)}
-            className="w-full bg-gray-800 p-2 rounded"
-          />
-        </div>
-
-        {status && <p className="text-yellow-400">{status}</p>}
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-indigo-600 py-2 rounded"
-        >
-          {loading ? 'Processing…' : 'Subscribe'}
-        </button>
-      </form>
+    <div className="max-w-md mx-auto bg-gray-900 text-white p-6 mt-20 rounded-lg shadow">
+      <h2 className="text-xl mb-4 text-green-400 font-bold">Subscribe</h2>
+      <CardElement className="bg-gray-800 p-2 rounded mb-4" />
+      <button
+        disabled={loading}
+        onClick={handleSubscribe}
+        className="w-full py-2 bg-green-500 hover:bg-green-600 rounded disabled:opacity-50"
+      >
+        {loading ? 'Processing…' : 'Subscribe to Pro Annual'}
+      </button>
+      {message && <p className="mt-4 text-sm text-yellow-300">{message}</p>}
     </div>
   )
 }
 
+export default function SubscriptionPage() {
+  return (
+    <Elements stripe={stripePromise}>
+      <SubscriptionForm />
+    </Elements>
+  )
+}
