@@ -1,17 +1,18 @@
-# app/routers/branch.py
+# File: app/routers/branch.py
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
 
 from ..database import get_db
 from ..models import Branch, Commit
 from ..schemas import BranchCreate, BranchResponse, CommitResponse
-from app.routers.auth import oauth2_scheme  # if you need auth, else remove
 
 router = APIRouter(
     prefix="/branch",
     tags=["branch"],
 )
+
 
 @router.post("/", response_model=BranchResponse)
 def create_branch(branch: BranchCreate, db: Session = Depends(get_db)):
@@ -29,11 +30,13 @@ def create_branch(branch: BranchCreate, db: Session = Depends(get_db)):
     db.refresh(db_branch)
     return db_branch
 
-@router.get("/", response_model=list[BranchResponse])
+
+@router.get("/", response_model=List[BranchResponse])
 def list_branches(db: Session = Depends(get_db)):
     return db.query(Branch).all()
 
-@router.get("/{branch_id}/commits", response_model=list[CommitResponse])
+
+@router.get("/{branch_id}/commits", response_model=List[CommitResponse])
 def get_commits_for_branch(branch_id: int, db: Session = Depends(get_db)):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
@@ -47,6 +50,7 @@ def get_commits_for_branch(branch_id: int, db: Session = Depends(get_db)):
     )
     return commits
 
+
 @router.get("/{branch_id}/head")
 def get_branch_head(branch_id: int, db: Session = Depends(get_db)):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
@@ -59,9 +63,11 @@ def get_branch_head(branch_id: int, db: Session = Depends(get_db)):
         "head_commit": commit
     }
 
+
 @router.get("/{branch_id}", response_model=BranchResponse)
 def get_branch(branch_id: int, db: Session = Depends(get_db)):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
     return branch
+
