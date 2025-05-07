@@ -52,5 +52,15 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     user = db.query(User).filter_by(email=form_data.username).first()
     if not user or not pwd_context.verify(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
     access = create_access_token({"sub": user.email})
-    return {"access_token": access}
+    return {
+        "access_token": access,
+        "token_type": "bearer"
+    }
+
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(hours=24)):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

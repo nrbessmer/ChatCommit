@@ -9,3 +9,4 @@ passlib[bcrypt]
 python-multipart
 Stripe
 fastapi-mail
+Qs

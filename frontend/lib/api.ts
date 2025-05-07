@@ -75,9 +75,23 @@ export interface UserProfile {
 export const registerUser = (data: UserRegisterPayload): Promise<AuthResponse> =>
   api.post<AuthResponse>('/users/register', data).then(res => res.data)
 
-// Log in (returns token)
-export const loginUser = (data: UserLoginPayload): Promise<AuthResponse> =>
-  api.post<AuthResponse>('/users/login', data).then(res => res.data)
+import qs from 'qs'
+
+export const loginUser = async (data: UserLoginPayload): Promise<AuthResponse> => {
+  const res = await api.post<AuthResponse>(
+    '/auth/token',
+    qs.stringify({
+      username: data.email,
+      password: data.password,
+    }),
+    {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    }
+  )
+  return res.data
+}
 
 // Fetch current user's profile (requires Authorization header)
 export const fetchUserProfile = (): Promise<UserProfile> =>
