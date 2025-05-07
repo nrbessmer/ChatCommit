@@ -8,7 +8,7 @@ import os
 
 from .database import SessionLocal, engine
 from .models import Base, Commit, Branch  # <-- Add Base
-from app.routers import commit, branch, rollback, tag, timeline, stripe, user, auth
+from app.routers import commit, branch, rollback, tag, timeline, stripe, user, auth, subscription
 
 
 app = FastAPI(redirect_slashes=True)  # or just omit the param (default is True)
@@ -94,4 +94,4 @@ app.include_router(tag.router, prefix="/tag")
 app.include_router(timeline.router)  # add this line after other routers
 app.include_router(auth.router)                   # <— now /auth/register works
 app.include_router(user.router)
-app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
+app.include_router(subscription.router)

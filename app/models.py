@@ -61,5 +61,5 @@ class User(Base):
     subscribed                  = Column(Boolean, default=False)
     date_subscribed             = Column(DateTime(timezone=True), nullable=True)
     date_subscription_expires   = Column(DateTime(timezone=True), nullable=True)
-
     commits                     = relationship("Commit", back_populates="owner")
+    stripe_customer_id = Column(String, nullable=True)
