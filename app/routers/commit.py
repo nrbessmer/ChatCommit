@@ -6,7 +6,6 @@ from ..models import Commit, Branch, User
 from ..schemas import CommitCreate, CommitResponse
 import hashlib
 import jwt
-from jose import JWTError
 from datetime import datetime, timezone
 from typing import List
 
