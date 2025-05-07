@@ -8,6 +8,11 @@ from ..models import User
 from ..schemas import UserRegister, UserRead, Token
 import secrets, os
 
+from fastapi.security import OAuth2PasswordBearer
+
+# Token URL — you can update this later if needed
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = os.getenv("JWT_SECRET", secrets.token_hex(16))
 ALGORITHM = "HS256"
