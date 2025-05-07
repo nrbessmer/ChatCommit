@@ -78,6 +78,7 @@ export const registerUser = (data: UserRegisterPayload): Promise<AuthResponse> =
 import qs from 'qs'
 
 export const loginUser = async (data: UserLoginPayload): Promise<AuthResponse> => {
+  const qs = require('qs')
   const res = await api.post<AuthResponse>(
     '/auth/token',
     qs.stringify({
@@ -92,6 +93,7 @@ export const loginUser = async (data: UserLoginPayload): Promise<AuthResponse> =
   )
   return res.data
 }
+
 
 // Fetch current user's profile (requires Authorization header)
 export const fetchUserProfile = (): Promise<UserProfile> =>
