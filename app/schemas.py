@@ -5,7 +5,9 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
 
-class ConversationContext(BaseModel):
+class Token(BaseModel):
+    access_token: str
+    token_type: strclass ConversationContext(BaseModel):
     messages: Optional[List[str]] = []
 
 
