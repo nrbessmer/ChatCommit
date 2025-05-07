@@ -1,10 +1,17 @@
+# app/routers/branch.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from ..database import get_db
 from ..models import Branch, Commit
-from ..schemas import BranchCreate, BranchResponse
+from ..schemas import BranchCreate, BranchResponse, CommitResponse
+from app.routers.auth import oauth2_scheme  # if you need auth, else remove
 
-router = APIRouter(prefix="/branch", tags=["branch"])
+router = APIRouter(
+    prefix="/branch",
+    tags=["branch"],
+)
 
 @router.post("/", response_model=BranchResponse)
 def create_branch(branch: BranchCreate, db: Session = Depends(get_db)):
@@ -26,7 +33,7 @@ def create_branch(branch: BranchCreate, db: Session = Depends(get_db)):
 def list_branches(db: Session = Depends(get_db)):
     return db.query(Branch).all()
 
-@router.get("/{branch_id}/commits", response_model=list[Commit])
+@router.get("/{branch_id}/commits", response_model=list[CommitResponse])
 def get_commits_for_branch(branch_id: int, db: Session = Depends(get_db)):
     branch = db.query(Branch).filter(Branch.id == branch_id).first()
     if not branch:
