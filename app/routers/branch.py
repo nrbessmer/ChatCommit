@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Branch, Commit
 from ..schemas import BranchCreate, BranchResponse
-from app.auth import oauth2_scheme
+from app.routers.auth import oauth2_scheme
+
 router = APIRouter()
 
 @router.post("/", response_model=BranchResponse)
