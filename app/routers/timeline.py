@@ -6,6 +6,7 @@ from ..database import get_db
 from ..models import Commit, Branch, Tag
 from ..schemas import CommitResponse
 from datetime import datetime
+from app.routers.auth import oauth2_scheme
 
 router = APIRouter()
 
