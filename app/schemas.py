@@ -12,7 +12,7 @@ class Token(BaseModel):
     
 class ConversationContext(BaseModel):
     messages: list[str]
-    source: str
+    source: Optional[str] = None
 
 class CommitCreate(BaseModel):
     commit_message: str
