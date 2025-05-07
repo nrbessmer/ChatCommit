@@ -7,7 +7,8 @@ from datetime import datetime
 
 class Token(BaseModel):
     access_token: str
-    token_type: strclass ConversationContext(BaseModel):
+    token_type: strclass
+    ConversationContext(BaseModel):
     messages: Optional[List[str]] = []
 
 
