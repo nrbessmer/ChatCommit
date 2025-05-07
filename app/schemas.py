@@ -83,6 +83,12 @@ class UserRead(BaseModel):
     class Config:
         orm_mode = True
         
+class UserActivate(BaseModel):
+    email: EmailStr
+    token: str
+    class Config:
+        orm_mode = True
+        
 class UserActivateResponse(BaseModel):
     message: str
     

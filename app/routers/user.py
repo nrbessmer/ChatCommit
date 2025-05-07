@@ -9,7 +9,7 @@ from ..database import get_db
 from ..models import User
 from ..schemas import (
     UserRegister, UserRegisterResponse,
-    UserActivate,  UserActivateResponse
+    UserActivate, UserActivateResponse,
 )
 
 # for sending email
@@ -20,15 +20,17 @@ router = APIRouter(prefix="/users", tags=["users"])
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # configure FastMail via ENV vars
+from fastapi_mail import ConnectionConfig
+
 conf = ConnectionConfig(
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD"),
-    MAIL_FROM     = os.getenv("MAIL_FROM"),
-    MAIL_PORT     = int(os.getenv("MAIL_PORT", 587)),
-    MAIL_SERVER   = os.getenv("MAIL_SERVER"),
-    MAIL_TLS      = True,
-    MAIL_SSL      = False,
-    USE_CREDENTIALS = True,
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    MAIL_FROM=os.getenv("MAIL_FROM"),
+    MAIL_PORT=587,
+    MAIL_SERVER=os.getenv("MAIL_SERVER"),
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
+    USE_CREDENTIALS=True
 )
 
 def send_activation_email(to_email: str, token: str):
