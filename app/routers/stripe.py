@@ -1,6 +1,6 @@
-# app/routers/stripe.py
+import os
 import stripe
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User
@@ -23,12 +23,16 @@ def create_checkout(user: User = Depends(get_current_user)):
     return {"url": session.url}
 
 @router.post("/webhook")
-def stripe_webhook(request: Request, db: Session = Depends(get_db)):
-    payload = await request.body()
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):  # ✅ now async
+    payload = await request.body()  # ✅ no longer invalid
     sig_header = request.headers.get("stripe-signature")
-    event = stripe.Webhook.construct_event(payload, sig_header, os.getenv("STRIPE_ENDPOINT_SECRET"))
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, os.getenv("STRIPE_ENDPOINT_SECRET"))
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        # mark user subscribed, set dates...
-    return {}
+        # TODO: mark user as subscribed in DB
 
+    return {"status": "success"}
