@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from ..database import get_db
 from ..models import User
-from app.routers.user import get_current_user
+from app.routers.commit import get_current_user
 import stripe
 import os
 
