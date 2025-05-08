@@ -87,22 +87,25 @@
   </div>
 
   <!-- ───────── MERGE ───────── -->
-  <div class="container" id="merge-panel" style="display:none">
-    <h2 class="header">🔀 Merge Branches</h2>
+<div class="container" id="merge-panel" style="display:none">
+  <h2 class="header">🔀 Merge Branches</h2>
 
-    <label for="merge-source">Source Branch</label>
-    <input type="text" id="merge-source" readonly />
+  <!-- Source branch selector -->
+  <label for="merge-source">Source Branch</label>
+  <select id="merge-source"></select>
 
-    <label for="merge-target">Target Branch</label>
-    <select id="merge-target"></select>
+  <!-- Target branch selector -->
+  <label for="merge-target">Target Branch</label>
+  <select id="merge-target"></select>
 
-    <div class="button-group">
-      <button id="execute-merge" class="blue">✅ Confirm</button>
-      <button id="cancel-merge">⬅️ Cancel</button>
-    </div>
-
-    <p id="merge-status" class="message"></p>
+  <div class="button-group">
+    <button id="execute-merge" class="blue">✅ Confirm</button>
+    <button id="cancel-merge">⬅️ Cancel</button>
   </div>
+
+  <p id="merge-status" class="message"></p>
+</div>
+
 
   <script src="popup.js"></script>
 </body>
