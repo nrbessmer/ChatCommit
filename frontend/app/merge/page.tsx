@@ -1,76 +1,88 @@
-// frontend/app/components/MergeForm.tsx
-'use client';
+'use client'
 
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react'
+import axios from 'axios'
+import { API_BASE } from '@/lib/api'   // ← centralised base URL
+
+/* ──────────────────────────────────────────────────────────
+   Types
+────────────────────────────────────────────────────────── */
+export interface MergeFormProps {
+  onMerged?: (message: string) => void
+}
 
 interface Branch {
-  id: number;
-  name: string;
+  id: number
+  name: string
 }
 
-interface MergeFormProps {
-  onMerged?: (message: string) => void; // optional callback to handle success
-}
-
+/* ──────────────────────────────────────────────────────────
+   Component
+────────────────────────────────────────────────────────── */
 export default function MergeForm({ onMerged }: MergeFormProps) {
-  const [branches, setBranches] = useState<Branch[]>([]);
-  const [sourceId, setSourceId] = useState('');
-  const [targetId, setTargetId] = useState('');
-  const [status, setStatus] = useState('');
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [sourceId, setSourceId]   = useState('')
+  const [targetId, setTargetId]   = useState('')
+  const [status,   setStatus]     = useState('')
 
+  /* ─── Load branch list once ───────────────────────────── */
   useEffect(() => {
     axios
-      .get('https://chatcommit.fly.dev/branch/')
-      .then((res) => setBranches(res.data))
-      .catch((err) => console.error('Error loading branches:', err));
-  }, []);
+      .get<Branch[]>(`${API_BASE}/branch/`)
+      .then(res => setBranches(res.data))
+      .catch(err => console.error('Error loading branches:', err))
+  }, [])
 
+  /* ─── Merge action ────────────────────────────────────── */
   const handleMerge = async () => {
     if (!sourceId || !targetId || sourceId === targetId) {
-      return alert('Please select two different branches to merge.');
+      return alert('Please select two different branches to merge.')
     }
 
     try {
-      // Use the path-style merge endpoint
-      const res = await axios.post(
-        `https://chatcommit.fly.dev/merge/${sourceId}/${targetId}`
-      );
-      setStatus(res.data.message);
-      if (onMerged) {
-        onMerged(res.data.message);
-      }
-    } catch (err: any) {
-      const detail = err.response?.data?.detail || 'Merge failed';
-      setStatus(`❌ ${detail}`);
-    }
-  };
+      const token = localStorage.getItem('auth_token') || ''
+      const res   = await axios.post(
+        `${API_BASE}/merge/${sourceId}/${targetId}`,
+        null,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
 
+      setStatus(res.data.message)
+      onMerged?.(res.data.message)
+    } catch (err: any) {
+      const detail = err.response?.data?.detail || 'Merge failed'
+      setStatus(`❌ ${detail}`)
+    }
+  }
+
+  /* ─── Render ──────────────────────────────────────────── */
   return (
     <div className="p-4 bg-gray-900 text-gray-100 border border-gray-700 rounded">
-      <h3 className="text-sm font-bold mb-2">Merge Branches</h3>
+      <h3 className="text-sm font-bold mb-3">Merge Branches</h3>
 
       <div className="flex flex-col gap-3 mb-3">
+        {/* Source branch */}
         <select
           className="border border-gray-600 bg-gray-800 text-gray-100 p-2 rounded"
           value={sourceId}
-          onChange={(e) => setSourceId(e.target.value)}
+          onChange={e => setSourceId(e.target.value)}
         >
           <option value="">-- Select source branch --</option>
-          {branches.map((b) => (
+          {branches.map(b => (
             <option key={b.id} value={b.id}>
               {b.name} (#{b.id})
             </option>
           ))}
         </select>
 
+        {/* Target branch */}
         <select
           className="border border-gray-600 bg-gray-800 text-gray-100 p-2 rounded"
           value={targetId}
-          onChange={(e) => setTargetId(e.target.value)}
+          onChange={e => setTargetId(e.target.value)}
         >
           <option value="">-- Select target branch --</option>
-          {branches.map((b) => (
+          {branches.map(b => (
             <option key={b.id} value={b.id}>
               {b.name} (#{b.id})
             </option>
@@ -91,5 +103,5 @@ export default function MergeForm({ onMerged }: MergeFormProps) {
         </div>
       )}
     </div>
-  );
+  )
 }
