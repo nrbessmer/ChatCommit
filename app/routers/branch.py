@@ -82,12 +82,14 @@ def get_commits_for_branch(
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
 
-    commits = (
-        db.query(Commit)
-        .filter(Commit.branch_id == branch_id)
-        .order_by(Commit.created_at.desc())
-        .all()
-    )
+    # Base query: all commits for this branch
+    query = db.query(Commit).filter(Commit.branch_id == branch_id)
+
+    # If a rollback has been applied, limit to commits up to the current_commit_id
+    if branch.current_commit_id is not None:
+        query = query.filter(Commit.id <= branch.current_commit_id)
+
+    commits = query.order_by(Commit.created_at.desc()).all()
     return commits
 
 @router.get(
