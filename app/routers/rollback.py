@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Branch, Commit
 
-router = APIRouter(
-    prefix="/rollback",
+router = APIRouter(  # **no** prefix here
     tags=["rollback"],
 )
+
 
 @router.post(
     "/{branch_id}/{commit_id}",

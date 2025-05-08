@@ -10,7 +10,6 @@ from ..models import Tag, Commit
 from ..schemas import TagCreate, TagResponse, CommitResponse
 
 router = APIRouter(
-    prefix="/tag",
     tags=["tags"],
 )
 
@@ -53,7 +52,6 @@ def list_tags(db: Session = Depends(get_db)):
     summary="List tags for a specific commit",
 )
 def tags_for_commit(commit_id: int, db: Session = Depends(get_db)):
-    # will naturally return empty list if none
     return (
         db.query(Tag)
           .filter(Tag.commit_id == commit_id)

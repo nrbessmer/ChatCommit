@@ -1,3 +1,4 @@
+/* popup.css */
 /* Larger, resizable panel */
 body {
   margin: 0;
@@ -6,21 +7,19 @@ body {
   font-family: Tahoma, sans-serif;
   width: 700px;
   height: 900px;
-  overflow: hidden; /* attempt no scroll, user may forcibly resize if the browser allows */
+  overflow: hidden; /* no scroll */
 }
 
-.container {
-  padding: 16px;
-}
+.container { padding: 16px; }
 
-/* Smaller logo */
+/* Logo */
 .logo {
   width: 60px;
   display: block;
   margin: 0 auto 8px;
 }
 
-/* Title styling */
+/* Title */
 .header {
   text-align: center;
   font-size: 20px;
@@ -28,15 +27,11 @@ body {
   margin: 4px 0;
 }
 
-/* Sub-styles for the ChatCommit brand text */
-.chat {
-  color: #fff;
-}
+/* Brand colors */
+.chat   { color:#fff; }
+.commit { color:orange; }
 
-.commit {
-  color: orange;
-}
-
+/* Subtitle */
 .subtitle {
   text-align: center;
   font-size: 11px;
@@ -44,16 +39,15 @@ body {
   margin-bottom: 12px;
 }
 
-/* Label text in bright green */
+/* Labels */
 label {
   display: block;
-  margin-top: 10px;
-  margin-bottom: 4px;
+  margin: 10px 0 4px;
   font-weight: bold;
   color: #00ff99;
 }
 
-/* Inputs + textareas */
+/* Inputs & textareas */
 select,
 textarea,
 input[type="text"],
@@ -68,7 +62,7 @@ input[type="password"] {
   font-family: Tahoma, sans-serif;
 }
 
-/* Conversation area bigger, purple scrollbar */
+/* Context area */
 textarea#context-area {
   resize: vertical;
   height: 250px;
@@ -77,7 +71,7 @@ textarea#context-area {
   scrollbar-color: purple #222;
 }
 
-/* Buttons with icons + smaller styling */
+/* Buttons */
 button {
   width: 100%;
   margin-top: 8px;
@@ -90,45 +84,24 @@ button {
   font-family: Tahoma, sans-serif;
 }
 
-/* Primary commit button */
-.primary {
-  background-color: #22c55e;
-  color: black;
-}
+/* Variants */
+.primary { background:#22c55e; color:#000; }
+.blue    { background:#2962ff; color:#fff; }
+.purple  { background:purple;  color:#fff; }
+.green   { background:#22c55e; color:#000; }
+/* Log Out */
+.red     { background:#e11d48; color:#fff; }
 
-/* Blue button style */
-.blue {
-  background-color: #2962ff;
-  color: white;
-}
-
-/* Purple style used for e.g. copy context */
-.purple {
-  background-color: purple;
-  color: white;
-}
-
-/* Save in settings */
-.green {
-  background-color: #22c55e;
-  color: black;
-}
-
-/* MISC */
+/* Button group */
 .button-group {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
 }
+.button-group button { flex:1 1 45%; background:#333; color:#fff; }
 
-.button-group button {
-  flex: 1 1 45%;
-  background-color: #333;
-  color: white;
-}
-
-/* Status message */
+/* Status messages */
 #status-message,
 #login-status {
   font-size: 12px;
@@ -137,37 +110,24 @@ button {
   text-align: center;
 }
 
-/* Collapsible summary (for branch section) */
+/* Collapsible */
 .collapsible-label {
   cursor: pointer;
   font-weight: bold;
   color: #ffd700;
   margin-top: 12px;
 }
+details[open] > summary::after { content:"▲"; float:right; }
+details:not([open]) > summary::after { content:"▼"; float:right; }
+summary { list-style:none; }
+summary::-webkit-details-marker { display:none; }
 
-details[open] > summary::after {
-  content: "▲";
-  float: right;
-}
-details:not([open]) > summary::after {
-  content: "▼";
-  float: right;
-}
-summary {
-  list-style: none;
-}
-summary::-webkit-details-marker {
-  display: none;
-}
-
-/* LOGIN PANEL */
+/* Login panel centering */
 #login-panel input,
-#login-panel button {
-  margin-top: 6px;
-}
+#login-panel button { margin-top:6px; }
 #login-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  height: 100%;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  height:100%;
 }
