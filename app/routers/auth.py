@@ -85,13 +85,18 @@ class UserLoginJSON(BaseModel):
 
 
 # ─── JSON‑based /users/login shim ─────────────────────────
-@router.post("/users/login", response_model=Token)
-def login_via_json(payload: UserLoginJSON, db: Session = Depends(get_db)):
-    user = db.query(User).filter_by(email=payload.email).first()
-    if not user or not pwd_context.verify(payload.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    access = create_access_token({"sub": user.email})
-    return {"access_token": access, "token_type": "bearer"}
+@router.post("/auth/users/login", response_model=Token)
+def login(user: UserLogin, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter_by(email=user.email).first()
+    if not db_user or not pwd_context.verify(user.password, db_user.password_hash):
+        raise HTTPException(401, "Invalid credentials")
+
+    # NEW: block non‑paying users
+    if not db_user.subscribed or (db_user.date_subscription_expires and db_user.date_subscription_expires < datetime.utcnow()):
+        raise HTTPException(403, "Subscription required to log in")
+
+    access_token = create_access_token({"sub": db_user.id})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 # ─── Optional: alias POST /users/login to form‑flow ───────
