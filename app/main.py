@@ -21,14 +21,12 @@ from app.routers import (
     stripe,
 )
 
-# CORS—allow your frontends
+app = FastAPI(title="ChatCommit API", version="0.1.0")
+
+# ─── MIDDLEWARE ────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://chatcommit.fly.dev",
-        "https://chat-commit.vercel.app",
-        "chrome-extension://obciponildojcfgfajioeomjkihdadbc",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
