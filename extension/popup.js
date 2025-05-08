@@ -1,4 +1,3 @@
-// popup.js
 document.addEventListener("DOMContentLoaded", () => {
   // ───── SETUP PANELS ─────
   const loginPanel    = document.getElementById("login-panel");
@@ -11,50 +10,53 @@ document.addEventListener("DOMContentLoaded", () => {
   const STORAGE_KEY_TOKEN = "chatcommit_auth_token";
   const API_BASE = "https://chatcommit.fly.dev";
 
+  console.log('[popup] DOMContentLoaded - checking token');
   // Skip login if we already have a token
   if (localStorage.getItem(STORAGE_KEY_TOKEN)) {
+    console.log('[popup] token found, initializing app');
     loginPanel.style.display = "none";
     mainPanel.style.display  = "block";
     initApp();
   }
 
-// ───── LOGIN LOGIC ─────
-console.log('[popup] binding login handler');
-const loginBtn = document.getElementById("login-submit");
-console.log('[popup] loginBtn is', loginBtn);
-loginBtn.onclick = async () => {
-  console.log('[popup] login button clicked');
-  const email    = document.getElementById("login-email").value.trim();
-  const password = document.getElementById("login-password").value;
-  loginStatus.textContent = "⏳ Logging in…";
+  // ───── LOGIN LOGIC ─────
+  console.log('[popup] binding login handler');
+  const loginBtn = document.getElementById("login-submit");
+  console.log('[popup] loginBtn is', loginBtn);
+  loginBtn.onclick = async () => {
+    console.log('[popup] login button clicked');
+    const email    = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    loginStatus.textContent = "⏳ Logging in…";
 
-  try {
-    console.log('[popup] about to fetch', `${API_BASE}/auth/users/login`);
-    const res = await fetch(`${API_BASE}/auth/users/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
-    console.log('[popup] fetch returned', res.status);
-    if (!res.ok) throw new Error(`Login failed (${res.status})`);
-    const { access_token } = await res.json();
-    console.log('[popup] got token', access_token);
-    localStorage.setItem(STORAGE_KEY_TOKEN, access_token);
+    try {
+      console.log('[popup] about to fetch', `${API_BASE}/auth/users/login`);
+      const res = await fetch(`${API_BASE}/auth/users/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+      console.log('[popup] fetch returned', res.status);
+      if (!res.ok) throw new Error(`Login failed (${res.status})`);
+      const { access_token } = await res.json();
+      console.log('[popup] got token', access_token);
+      localStorage.setItem(STORAGE_KEY_TOKEN, access_token);
 
-    loginStatus.textContent = "✅ Success!";
-    loginPanel.style.display = "none";
-    mainPanel.style.display  = "block";
-    initApp();
-  } catch (err) {
-    console.error("Login error:", err);
-    loginStatus.textContent = "❌ Login failed";
-  }
-};
-
+      loginStatus.textContent = "✅ Success!";
+      loginPanel.style.display = "none";
+      mainPanel.style.display  = "block";
+      initApp();
+    } catch (err) {
+      console.error("Login error:", err);
+      loginStatus.textContent = "❌ Login failed";
+    }
+  };
 
 
   // ───── MAIN APP ─────
   function initApp() {
+    console.log('[popup] initApp start');
+
     // UI elements
     const refreshBtn      = document.getElementById("refresh-chat");
     const branchSelect    = document.getElementById("branch-select");
@@ -87,6 +89,7 @@ loginBtn.onclick = async () => {
 
     // ─── LOGOUT ───
     logoutBtn.onclick = () => {
+      console.log('[popup] logging out');
       localStorage.removeItem(STORAGE_KEY_TOKEN);
       chrome.storage.local.clear(() => {
         loginPanel.style.display    = "block";
@@ -136,17 +139,31 @@ loginBtn.onclick = async () => {
       );
 
     const fetchBranches = async (base) => {
+      console.log('[popup] fetchBranches fetching from', base+'/branch/');
       const r = await fetch(`${base}/branch/`, {
         headers: { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}` }
       });
+      console.log('[popup] fetchBranches status', r.status);
       if (!r.ok) throw new Error("Branch API failed");
-      return r.json();
+      const data = await r.json();
+      console.log('[popup] fetchBranches data', data);
+      return data;
     };
 
     const populateSelect = async (base, selectEl, excludeId = null) => {
+      console.log('[popup] populateSelect: clearing', selectEl.id);
       selectEl.innerHTML = "";
       try {
         const branches = await fetchBranches(base);
+        console.log('[popup] populateSelect: branches returned', branches);
+        if (!branches.length) {
+          console.warn('[popup] populateSelect: no branches available');
+          const o = document.createElement("option");
+          o.textContent = "No branches available";
+          o.disabled = true;
+          selectEl.appendChild(o);
+          return;
+        }
         branches.forEach(({ id, name }) => {
           if (excludeId !== null && id === excludeId) return;
           const o = document.createElement("option");
@@ -154,7 +171,9 @@ loginBtn.onclick = async () => {
           o.textContent = `${name} (#${id})`;
           selectEl.appendChild(o);
         });
-      } catch {
+        console.log('[popup] populateSelect: done populating');
+      } catch (err) {
+        console.error('[popup] populateSelect error', err);
         statusMsg.textContent = "❌ Failed to load branches";
       }
     };
@@ -170,12 +189,10 @@ loginBtn.onclick = async () => {
             document.querySelectorAll("[data-message-author-role]").forEach((el) => {
               const role = el.getAttribute("data-message-author-role") === "user" ? "User" : "AI";
               const t = el.innerText.trim();
-              if (t) messages.push(`${role}: ${t}`);  
+              if (t) messages.push(`${role}: ${t}`);
             });
             const canvas_images = [];
-            document.querySelectorAll("canvas").forEach((cv) => {
-              try { canvas_images.push(cv.toDataURL()); } catch { canvas_images.push(null); }
-            });
+            document.querySelectorAll("canvas").forEach((cv) => { try { canvas_images.push(cv.toDataURL()); } catch { canvas_images.push(null); } });
             const images = Array.from(document.querySelectorAll("img.chatImage")).map((i) => i.src);
             return { messages, canvas_images, images };
           }
@@ -193,64 +210,63 @@ loginBtn.onclick = async () => {
         .catch(() => statusMsg.textContent = "❌ Copy failed");
 
     // ─── COMMIT ───
-commitBtn.onclick = async () => {
-  const base = await getBackend();
-  const commit_message = messageInput.value.trim();
-  let ctx;
-  try {
-    ctx = JSON.parse(contextArea.value);
-  } catch {
-    return statusMsg.textContent = "❌ Invalid JSON";
-  }
-  const branch_id = parseInt(branchSelect.value, 10);
-  if (!commit_message || !ctx.messages?.length || !branch_id) {
-    return statusMsg.textContent = "❌ Missing commit data";
-  }
+    commitBtn.onclick = async () => {
+      const base = await getBackend();
+      const commit_message = messageInput.value.trim();
+      let ctx;
+      try {
+        ctx = JSON.parse(contextArea.value);
+      } catch {
+        return statusMsg.textContent = "❌ Invalid JSON";
+      }
+      const branch_id = parseInt(branchSelect.value, 10);
+      if (!commit_message || !ctx.messages?.length || !branch_id) {
+        return statusMsg.textContent = "❌ Missing commit data";
+      }
 
-  // 🔍 DEBUG: log token & URL
-  console.log("COMMIT: using token", localStorage.getItem(STORAGE_KEY_TOKEN));
-  console.log("COMMIT: POST to", `${base}/commit/`);
+      // 🔍 DEBUG: log token & URL
+      console.log("COMMIT: using token", localStorage.getItem(STORAGE_KEY_TOKEN));
+      console.log("COMMIT: POST to", `${base}/commit/`);
 
-  try {
-    const r = await fetch(`${base}/commit/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
-      },
-      body: JSON.stringify({ commit_message, conversation_context: ctx, branch_id })
-    });
+      try {
+        const r = await fetch(`${base}/commit/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
+          },
+          body: JSON.stringify({ commit_message, conversation_context: ctx, branch_id })
+        });
 
-    console.log("COMMIT: response status", r.status);
+        console.log("COMMIT: response status", r.status);
 
-    const d = await r.json();
-    if (!r.ok) {
-      return statusMsg.textContent = `❌ Commit error: ${d.detail || JSON.stringify(d)}`;
-    }
+        const d = await r.json();
+        if (!r.ok) {
+          return statusMsg.textContent = `❌ Commit error: ${d.detail || JSON.stringify(d)}`;
+        }
 
-    let msg = `✅ Commit #${d.commit_hash.slice(0,8)} saved`;
-    const tag = tagInput.value.trim();
-    if (tag) {
-      console.log("COMMIT: adding tag", tag);
-      const tagRes = await fetch(`${base}/tag/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
-        },
-        body: JSON.stringify({ name: tag, commit_id: d.id })
-      });
-      console.log("COMMIT: tag response status", tagRes.status);
-      msg += tagRes.ok ? " + Tag added" : " (Tag failed)";
-    }
+        let msg = `✅ Commit #${d.commit_hash.slice(0,8)} saved`;
+        const tag = tagInput.value.trim();
+        if (tag) {
+          console.log("COMMIT: adding tag", tag);
+          const tagRes = await fetch(`${base}/tag/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
+            },
+            body: JSON.stringify({ name: tag, commit_id: d.id })
+          });
+          console.log("COMMIT: tag response status", tagRes.status);
+          msg += tagRes.ok ? " + Tag added" : " (Tag failed)";
+        }
 
-    statusMsg.textContent = msg;
-  } catch (err) {
-    console.error("COMMIT: fetch error", err);
-    statusMsg.textContent = "❌ Commit failed";
-  }
-};
-
+        statusMsg.textContent = msg;
+      } catch (err) {
+        console.error("COMMIT: fetch error", err);
+        statusMsg.textContent = "❌ Commit failed";
+      }
+    };
 
     // ─── CREATE/VIEW BRANCH ───
     createBranchBtn.onclick = () => {
@@ -286,7 +302,7 @@ commitBtn.onclick = async () => {
     mergeBtn.onclick = async () => {
       const base = await getBackend();
       await populateSelect(base, mergeTargetSel, branchSelect.value);
-      mergeSource.value = branchSelect.selectedOptions[0].textContent;
+      mergeSource.value = branchSelect.selectedOptions[0]?.textContent || "";
       mainPanel.style.display = "none";
       mergePanel.style.display = "block";
       mergeStatus.textContent = "";
@@ -304,7 +320,8 @@ commitBtn.onclick = async () => {
         });
         const dd = await res.json();
         mergeStatus.textContent = res.ok ? `✅ ${dd.message}` : `❌ ${dd.detail || JSON.stringify(dd)}`;
-      } catch {
+      } catch (err) {
+        console.error('[popup] merge error', err);
         mergeStatus.textContent = "❌ Merge error";
       }
     };
@@ -315,6 +332,7 @@ commitBtn.onclick = async () => {
 
     // ─── INITIALIZE ───
     getBackend().then((base) => {
+      console.log('[popup] initial backend URL', base);
       populateSelect(base, branchSelect);
       scrapeChat(base);
     });
