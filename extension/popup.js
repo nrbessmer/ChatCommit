@@ -298,37 +298,86 @@ document.addEventListener("DOMContentLoaded", () => {
     timelineBtn.onclick = () =>
       chrome.tabs.create({ url: "https://chat-commit.vercel.app/timeline" });
 
-    // ─── MERGE PANEL ───
-    mergeBtn.onclick = async () => {
-      const base = await getBackend();
-      await populateSelect(base, mergeTargetSel, branchSelect.value);
-      mergeSource.value = branchSelect.selectedOptions[0]?.textContent || "";
-      mainPanel.style.display = "none";
-      mergePanel.style.display = "block";
-      mergeStatus.textContent = "";
-    };
-    executeMerge.onclick = async () => {
-      const src = mergeSource.value.match(/#(\d+)\)$/)?.[1];
-      const tgt = mergeTargetSel.value;
-      if (!src || !tgt) {
-        return mergeStatus.textContent = "❌ Select both source & target";
-      }
-      try {
-        const res = await fetch(`${await getBackend()}/merge?source_branch_id=${src}&target_branch_id=${tgt}`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}` }
+    <!-- ───────── MERGE PANEL ───────── -->
+<div class="container" id="merge-panel" style="display:none">
+  <h2 class="header">🔀 Merge Branches</h2>
+
+  <label for="merge-source">Source Branch</label>
+  <select id="merge-source"></select>
+
+  <label for="merge-target">Target Branch</label>
+  <select id="merge-target"></select>
+
+  <div class="button-group">
+    <button id="execute-merge" class="blue">✅ Confirm</button>
+    <button id="cancel-merge">⬅️ Cancel</button>
+  </div>
+
+  <p id="merge-status" class="message"></p>
+</div>
+
+<script>
+  const API_BASE = 'https://chatcommit.fly.dev';
+
+  async function loadBranchesInto(selectorIds) {
+    try {
+      const resp = await fetch(`${API_BASE}/branch/`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const branches = await resp.json();
+      selectorIds.forEach(id => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = `<option value="">-- Select branch --</option>`;
+        branches.forEach(b => {
+          const opt = document.createElement('option');
+          opt.value = b.id;
+          opt.textContent = `${b.name} (#${b.id})`;
+          sel.appendChild(opt);
         });
-        const dd = await res.json();
-        mergeStatus.textContent = res.ok ? `✅ ${dd.message}` : `❌ ${dd.detail || JSON.stringify(dd)}`;
-      } catch (err) {
-        console.error('[popup] merge error', err);
-        mergeStatus.textContent = "❌ Merge error";
+      });
+    } catch (err) {
+      console.error('Failed to load branches:', err);
+      document.getElementById('merge-status').textContent = '❌ Could not load branches';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // populate both selects
+    loadBranchesInto(['merge-source', 'merge-target']);
+
+    document.getElementById('execute-merge').addEventListener('click', async () => {
+      const src = document.getElementById('merge-source').value;
+      const tgt = document.getElementById('merge-target').value;
+      const status = document.getElementById('merge-status');
+      status.textContent = '';
+
+      if (!src || !tgt || src === tgt) {
+        return alert('Please select two different branches to merge.');
       }
-    };
-    cancelMerge.onclick = () => {
-      mergePanel.style.display = "none";
-      mainPanel.style.display  = "block";
-    };
+
+      try {
+        const token = localStorage.getItem('auth_token') || '';
+        const res = await fetch(
+          `${API_BASE}/merge/${src}/${tgt}`,
+          {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw data;
+        status.textContent = data.message;
+      } catch (err) {
+        const msg = err.detail || err.message || 'Merge failed';
+        status.textContent = `❌ ${msg}`;
+      }
+    });
+
+    document.getElementById('cancel-merge').addEventListener('click', () => {
+      document.getElementById('merge-panel').style.display = 'none';
+    });
+  });
+</script>
+
 
     // ─── INITIALIZE ───
     getBackend().then((base) => {
