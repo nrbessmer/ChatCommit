@@ -1,19 +1,14 @@
-/* ---------------------------------------------------------
-   frontend/app/merge/page.tsx
-----------------------------------------------------------*/
-import MergeBranchesForm from '@/components/MergeBranchesForm'
+// frontend/app/merge/page.tsx
+'use client'
 
-/* Optional <head> metadata for the page ----------------- */
-export const metadata = { title: 'Merge Branches | ChatCommit' }
+import React from 'react'
+import MergeForm from '@/components/MergeForm'   // <-- point at the actual filename
 
-/* -------------------  PAGE COMPONENT  ------------------ */
 export default function MergePage() {
   return (
-    <main className="max-w-lg mx-auto p-6">
-      <h1 className="text-xl font-bold mb-4">🔀 Merge Branches</h1>
-      {/* ← the actual form component */}
-      <MergeBranchesForm />
-    </main>
+    <div className="max-w-md mx-auto mt-10">
+      <MergeForm onMerged={(msg) => alert(msg)} />
+    </div>
   )
 }
-/* ------------------------------------------------------- */
+
