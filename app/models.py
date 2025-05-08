@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", () => {
   // ───── SETUP PANELS ─────
   const loginPanel    = document.getElementById("login-panel");
   const mainPanel     = document.getElementById("main-panel");
