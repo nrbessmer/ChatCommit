@@ -18,17 +18,18 @@ document.addEventListener("DOMContentLoaded", () => {
     initApp();
   }
 
-  // ───── LOGIN ─────
+  // ───── LOGIN LOGIC ─────
   document.getElementById("login-submit").onclick = async () => {
     const email    = document.getElementById("login-email").value.trim();
     const password = document.getElementById("login-password").value;
     loginStatus.textContent = "⏳ Logging in…";
-
     try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
+-     const res = await fetch(`${API_BASE}/auth/login`, {
++     const res = await fetch(`${API_BASE}/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: email, password })
+-       body: JSON.stringify({ username: email, password })
++       body: JSON.stringify({ email, password })
       });
       if (!res.ok) throw new Error("Login failed");
       const { access_token } = await res.json();
@@ -42,6 +43,8 @@ document.addEventListener("DOMContentLoaded", () => {
       loginStatus.textContent = "❌ Login failed";
     }
   };
+
+
 
   // ───── MAIN APP ─────
   function initApp() {
