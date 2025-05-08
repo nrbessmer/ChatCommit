@@ -14,7 +14,7 @@ from ..models import Commit, Branch, User
 from ..schemas import CommitCreate, CommitResponse
 from ..config import SECRET_KEY, ALGORITHM  # ensure this reads your ENV secret
 
-router = APIRouter(prefix="/commit", tags=["commits"])
+router = APIRouter(tags=["commits"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
@@ -79,7 +79,7 @@ def create_commit(
         branch_id=commit_in.branch_id,
         parent_commit_id=parent_commit_id,
         # assign to the actual column name in your model
-        created_by=current_user.id,
+        owner_id=current_user.id,
     )
     db.add(db_commit)
     db.commit()
