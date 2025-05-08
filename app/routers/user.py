@@ -11,6 +11,8 @@ from ..schemas import (
     UserRegister, UserRegisterResponse,
     UserActivate, UserActivateResponse,
 )
+# for authentication dependency
+from ..routers.auth import get_current_user
 
 # for sending email
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
@@ -20,13 +22,11 @@ router = APIRouter(prefix="/users", tags=["users"])
 pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # configure FastMail via ENV vars
-from fastapi_mail import ConnectionConfig
-
 conf = ConnectionConfig(
     MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
     MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
     MAIL_FROM=os.getenv("MAIL_FROM"),
-    MAIL_PORT=587,
+    MAIL_PORT=int(os.getenv("MAIL_PORT", "587")),
     MAIL_SERVER=os.getenv("MAIL_SERVER"),
     MAIL_STARTTLS=True,
     MAIL_SSL_TLS=False,
@@ -44,7 +44,6 @@ def send_activation_email(to_email: str, token: str):
     fm = FastMail(conf)
     fm.send_message(message)
 
-
 @router.post(
     "/register",
     response_model=UserRegisterResponse,
@@ -55,28 +54,27 @@ async def register_user(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
-    # 1) ensure unique
+    # ensure unique email
     if db.query(User).filter_by(email=payload.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    # 2) hash + token
+    # hash password and generate token
     pw_hash = pwd_ctx.hash(payload.password)
-    token   = secrets.token_urlsafe(32)
+    token = secrets.token_urlsafe(32)
     user = User(
-        full_name     = payload.full_name,
-        address       = payload.address,
-        email         = payload.email,
-        company       = payload.company,
-        password_hash = pw_hash,
-        token         = token
+        full_name=payload.full_name,
+        address=payload.address,
+        email=payload.email,
+        company=payload.company,
+        password_hash=pw_hash,
+        token=token
     )
     db.add(user)
     db.commit()
 
-    # 3) send activation link in background
+    # send activation link in background
     background_tasks.add_task(send_activation_email, payload.email, token)
 
     return {"message": "Registration successful. Check your email to activate."}
-
 
 @router.post(
     "/activate",
@@ -93,8 +91,32 @@ def activate_user(
     if not user:
         raise HTTPException(status_code=400, detail="Invalid token or email")
 
-    # mark active by clearing token (or use a flag)
+    # mark active by clearing token
     user.token = ""
     db.commit()
     return {"message": "Account activated! You may now log in."}
 
+# Endpoint to send browser-extension install instructions
+def send_extension_instructions_email(to_email: str):
+    ext_link = os.getenv("EXTENSION_INSTALL_URL") or ""
+    message = MessageSchema(
+        subject="ChatCommit Extension Installation",
+        recipients=[to_email],
+        body=f"Hello! To install the ChatCommit extension, please follow this link:\n\n{ext_link}",
+        subtype="plain"
+    )
+    fm = FastMail(conf)
+    fm.send_message(message)
+
+@router.post(
+    "/extension-instructions",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Send browser-extension install instructions"
+)
+def extension_instructions(
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user)
+):
+    # enqueue email sending
+    background_tasks.add_task(send_extension_instructions_email, current_user.email)
+    return {"message": "Extension install instructions sent via email."}
