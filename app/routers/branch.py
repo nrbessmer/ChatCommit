@@ -8,9 +8,12 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Branch, Commit
 from ..schemas import BranchCreate, BranchResponse, CommitResponse
-from ..routers.auth import get_current_user  # if you end up enforcing auth
+from ..routers.auth import get_current_user  # only if you enforce auth
 
-router = APIRouter(prefix="/branch", tags=["branches"])
+router = APIRouter(
+    prefix="/branch",
+    tags=["branches"],
+)
 
 
 @router.post(
@@ -23,6 +26,7 @@ def create_branch(
     db: Session = Depends(get_db),
     # current_user=Depends(get_current_user),
 ):
+    # Validate base commit if provided
     if branch.base_commit_id is not None:
         base_commit = (
             db.query(Commit)
@@ -34,6 +38,7 @@ def create_branch(
                 status_code=404, detail="Base commit not found"
             )
 
+    # Create branch
     db_branch = Branch(
         name=branch.name,
         current_commit_id=branch.base_commit_id,
@@ -109,13 +114,12 @@ def get_branch_head(
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
 
-    head = (
+    head_commit = (
         db.query(Commit)
         .filter(Commit.id == branch.current_commit_id)
         .first()
     )
-
     return {
         "branch": branch.name,
-        "head_commit": head,
+        "head_commit": head_commit,
     }
