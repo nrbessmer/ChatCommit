@@ -22,7 +22,7 @@ from app.routers import (
     stripe,
 )
 
-app = FastAPI(title="ChatCommit API", version="0.1.0")
+app = FastAPI(title="ChatCommit API", version="0.1.0")  # 1
 
 # ─── MIDDLEWARE ────────────────────────────────────────────────
 app.add_middleware(
@@ -34,14 +34,14 @@ app.add_middleware(
 )
 
 @app.get("/", tags=["root"])
-def root():
+def root():  # 10
     return {"message": "ChatCommit backend"}
 
 @app.get("/health", tags=["root"])
-def health():
+def health():  # 14
     return {"status": "ok"}
 
-def initialize_default_branch():
+def initialize_default_branch():  # 18
     db: Session = SessionLocal()
     result = db.execute(text(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='branches'"
@@ -51,6 +51,7 @@ def initialize_default_branch():
         return
 
     if db.query(Branch).count() == 0:
+        # create the "init" commit
         commit_hash = hashlib.sha1(b"init").hexdigest()
         init_commit = Commit(
             commit_hash=commit_hash,
@@ -63,6 +64,7 @@ def initialize_default_branch():
         db.commit()
         db.refresh(init_commit)
 
+        # then the "main" branch
         main_branch = Branch(name="main", current_commit_id=init_commit.id)
         db.add(main_branch)
         db.commit()
@@ -70,7 +72,7 @@ def initialize_default_branch():
     db.close()
 
 @app.on_event("startup")
-def on_startup():
+def on_startup():  #  Fifty
     print("🚀 Ensuring DB schema...")
     Base.metadata.create_all(bind=engine)
 
@@ -107,6 +109,5 @@ app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
 app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
 app.include_router(stripe.router, prefix="/stripe", tags=["stripe"])
 
-#merge
-
-app.include_router(merge.router, prefix="/merge", tags=["merge"])
+# Merge branches
+app.include_router(merge.router, prefix="/merge", tags=["merge"])  # 112 lines total
