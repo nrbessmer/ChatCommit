@@ -20,10 +20,6 @@ from app.routers import (
     subscription,
     stripe,
 )
-app.include_router(
-    auth.router,
-    prefix="/auth/users",
-    tags=["auth"]app = FastAPI(title="ChatCommit API", version="0.1.0")
 
 # CORS—allow your frontends
 app.add_middleware(
