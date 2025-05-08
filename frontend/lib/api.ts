@@ -1,263 +1,214 @@
-// popup.js — FULL FILE UPDATED LOGIN ENDPOINT
+// frontend/lib/api.ts
+// ------------------------------------------------------------
+// Central place for every HTTP call to the FastAPI backend.
+// Every helper returns the _data_ payload directly (not AxiosResponse).
+// ------------------------------------------------------------
 
-document.addEventListener("DOMContentLoaded", () => {
-  // ───── SETUP PANELS ─────
-  const loginPanel    = document.getElementById("login-panel");
-  const mainPanel     = document.getElementById("main-panel");
-  const settingsPanel = document.getElementById("settings-panel");
-  const mergePanel    = document.getElementById("merge-panel");
-  const statusMsg     = document.getElementById("status-message");
-  const loginStatus   = document.getElementById("login-status");
+import axios from 'axios'
 
-  const STORAGE_KEY_TOKEN = "chatcommit_auth_token";
-  const API_BASE = "https://chatcommit.fly.dev";
+/* ──────────────────────────────────────────────────────────
+   Base URL
+────────────────────────────────────────────────────────── */
+export const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, '') ||
+  'https://chatcommit.fly.dev'
 
-  // Skip straight to app if token exists
-  if (localStorage.getItem(STORAGE_KEY_TOKEN)) {
-    loginPanel.style.display = "none";
-    mainPanel.style.display  = "block";
-    initApp();
-  }
+export const api = axios.create({ baseURL: API_BASE })
 
-  // ───── LOGIN LOGIC ─────
-  document.getElementById("login-submit").onclick = async () => {
-    const email    = document.getElementById("login-email").value.trim();
-    const password = document.getElementById("login-password").value;
-    loginStatus.textContent = "⏳ Logging in…";
-    try {
-      // Correct endpoint: /users/login
-      const res = await fetch(`${API_BASE}/users/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      if (!res.ok) throw new Error("Login failed");
-      const data = await res.json(); // { access_token, token_type }
-      localStorage.setItem(STORAGE_KEY_TOKEN, data.access_token);
-      loginStatus.textContent = "✅ Success!";
-      loginPanel.style.display = "none";
-      mainPanel.style.display  = "block";
-      initApp();
-    } catch (err) {
-      console.error(err);
-      loginStatus.textContent = "❌ Login failed";
-    }
-  };
 
-  // ───── MAIN APP ─────
-  function initApp() {
-    const refreshBtn       = document.getElementById("refresh-chat");
-    const branchSelect     = document.getElementById("branch-select");
-    const messageInput     = document.getElementById("message-input");
-    const contextArea      = document.getElementById("context-area");
-    const tagInput         = document.getElementById("tag-input");
-    const commitBtn        = document.getElementById("commit-btn");
-    const createBranchBtn  = document.getElementById("create-branch");
-    const viewBranchesBtn  = document.getElementById("view-branches");
-    const copyContextBtn   = document.getElementById("copy-context");
+/* ──────────────────────────────────────────────────────────
+   Shared Types
+────────────────────────────────────────────────────────── */
+export interface Commit {
+  id: number
+  commit_hash: string
+  commit_message: string
+  created_at: string
+  branch_id?: number
+}
 
-    const settingsBtn      = document.getElementById("settings-btn");
-    const saveSettingsBtn  = document.getElementById("save-settings");
-    const backBtn          = document.getElementById("back-btn");
-    const openaiKeyField   = document.getElementById("openai-key");
-    const backendUrlField  = document.getElementById("backend-url");
-    const repoHookField    = document.getElementById("repo-hook");
+export interface Branch {
+  id: number
+  name: string
+  current_commit_id?: number | null
+}
 
-    const mergeBtn         = document.getElementById("merge-btn");
-    const mergeSource      = document.getElementById("merge-source");
-    const mergeTargetSel   = document.getElementById("merge-target");
-    const executeMerge     = document.getElementById("execute-merge");
-    const cancelMerge      = document.getElementById("cancel-merge");
-    const mergeStatus      = document.getElementById("merge-status");
+export interface Tag {
+  id: number
+  name: string
+  commit_id: number
+}
 
-    const rollbackBtn      = document.getElementById("rollback-btn");
-    const timelineBtn      = document.getElementById("timeline-btn");
+/* ──────────────────────────────────────────────────────────
+   User / Auth
+────────────────────────────────────────────────────────── */
+export interface UserRegisterPayload {
+  full_name: string
+  address: string
+  email: string
+  company: string
+  password: string
+}
 
-    const logoutBtn        = document.getElementById("logout-btn");
+export interface UserLoginPayload {
+  email: string
+  password: string
+}
 
-    // ─── LOGOUT HANDLER ───
-    if (logoutBtn) {
-      logoutBtn.onclick = () => {
-        localStorage.removeItem(STORAGE_KEY_TOKEN);
-        chrome.storage.local.clear(() => {
-          loginPanel.style.display    = "block";
-          mainPanel.style.display     = "none";
-          settingsPanel.style.display = "none";
-          mergePanel.style.display    = "none";
-          loginStatus.textContent     = "🔒 Logged out";
-        });
-      };
-    }
+export interface AuthResponse {
+  token: string
+  expires_at?: string    // optional expiry timestamp
+}
 
-    // ─── SETTINGS ───
-    function loadSettings() {
-      chrome.storage.local.get(["openai", "repoUrl", "repoHook"], (res) => {
-        openaiKeyField.value   = res.openai   || "";
-        backendUrlField.value  = res.repoUrl  || API_BASE;
-        repoHookField.value    = res.repoHook || "";
-      });
-    }
-    saveSettingsBtn.onclick = () => {
-      chrome.storage.local.set({
-        openai:  openaiKeyField.value.trim(),
-        repoUrl: backendUrlField.value.trim(),
-        repoHook:repoHookField.value.trim()
-      }, () => {
-        statusMsg.textContent        = "✅ Settings saved";
-        settingsPanel.style.display  = "none";
-        mainPanel.style.display      = "block";
-      });
-    };
-    settingsBtn.onclick = () => {
-      mainPanel.style.display      = "none";
-      settingsPanel.style.display  = "block";
-      loadSettings();
-    };
-    backBtn.onclick = () => {
-      settingsPanel.style.display = "none";
-      mainPanel.style.display     = "block";
-    };
+export interface UserProfile {
+  id: number
+  full_name: string
+  address: string
+  email: string
+  company: string
+  subscribed: boolean
+  date_subscribed?: string
+  date_subscription_expires?: string
+}
 
-    // ─── HELPERS ───
-    const getBackend = () =>
-      new Promise(res =>
-        chrome.storage.local.get("repoUrl", (o) => res(o.repoUrl || API_BASE))
-      );
+// Register a new user
+export const registerUser = (
+  data: UserRegisterPayload
+): Promise<AuthResponse> =>
+  api.post<AuthResponse>('/users/register', data)
+     .then(res => res.data)
 
-    const fetchBranches = async (base) => {
-      const r = await fetch(`${base}/branch/`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}` }
-      });
-      if (!r.ok) throw new Error("Branch API failed");
-      return r.json();
-    };
+// Log in (returns token)
+export const loginUser = (
+  data: UserLoginPayload
+): Promise<AuthResponse> =>
+  api.post<AuthResponse>('/users/login', data)
+     .then(res => res.data)
 
-    const populateSelect = async (base, selectEl, excludeId = null) => {
-      selectEl.innerHTML = "";
-      try {
-        const branches = await fetchBranches(base);
-        branches.forEach(({ id, name }) => {
-          if (excludeId !== null && id === excludeId) return;
-          const o = document.createElement("option");
-          o.value = id;
-          o.textContent = `${name} (#${id})`;
-          selectEl.appendChild(o);
-        });
-      } catch {
-        statusMsg.textContent = "❌ Failed to load branches";
-      }
-    };
+// Fetch current user's profile (requires Authorization header)
+export const fetchUserProfile = (): Promise<UserProfile> =>
+  api.get<UserProfile>('/users/me')
+     .then(res => res.data)
 
-    // ─── SCRAPE CHAT ───
-    const scrapeChat = async (base) => {
-      try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        const [{ result }] = await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: () => {
-            const messages = [];
-            document.querySelectorAll("[data-message-author-role]").forEach((el) => {
-              const role = el.getAttribute("data-message-author-role") === "user" ? "User" : "AI";
-              const t = el.innerText.trim();
-              if (t) messages.push(`${role}: ${t}`);
-            });
-            const canvas_images = [];
-            document.querySelectorAll("canvas").forEach((cv) => {
-              try { canvas_images.push(cv.toDataURL()); } catch { canvas_images.push(null); }
-            });
-            const images = Array.from(document.querySelectorAll("img.chatImage")).map((i) => i.src);
-            return { messages, canvas_images, images };
-          }
-        });
-        contextArea.value = JSON.stringify(result, null, 2);
-        statusMsg.textContent = "✅ Chat scraped";
-      } catch {
-        statusMsg.textContent = "❌ Failed to scrape";
-      }
-    };
-    refreshBtn.onclick     = () => getBackend().then(scrapeChat);
-    copyContextBtn.onclick = () =>
-      navigator.clipboard.writeText(contextArea.value)
-        .then(() => statusMsg.textContent = "✅ Context copied")
-        .catch(() => statusMsg.textContent = "❌ Copy failed");
+// Request the browser‑extension install instructions via email
+export const sendExtensionInstructions = (): Promise<void> =>
+  api.post<void>('/users/extension-instructions')
+     .then(res => res.data)
 
-    // ─── COMMIT ───
-    commitBtn.onclick = async () => {
-      const base = await getBackend();
-      const commit_message = messageInput.value.trim();
-      let ctx;
-      try { ctx = JSON.parse(contextArea.value); } catch { return statusMsg.textContent = "❌ Invalid JSON"; }
-      const branch_id = parseInt(branchSelect.value, 10);
-      if (!commit_message || !ctx.messages?.length || !branch_id) {
-        return statusMsg.textContent = "❌ Missing commit data";
-      }
-      try {
-        const r = await fetch(`${base}/commit/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
-          },
-          body: JSON.stringify({ commit_message, conversation_context: ctx, branch_id })
-        });
-        const d = await r.json();
-        if (!r.ok) return statusMsg.textContent = `❌ Commit error: ${d.detail || JSON.stringify(d)}`;
-        let msg = `✅ Commit #${d.commit_hash.slice(0,8)} saved`;
-        const tag = tagInput.value.trim();
-        if (tag) {
-          const tagRes = await fetch(`${base}/tag/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
-            },
-            body: JSON.stringify({ name: tag, commit_id: d.id })
-          });
-          msg += tagRes.ok ? " + Tag added" : " (Tag failed)";
-        }
-        statusMsg.textContent = msg;
-      } catch {
-        statusMsg.textContent = "❌ Commit failed";
-      }
-    };
 
-    // ─── CREATE/VIEW BRANCH ───
-    createBranchBtn.onclick = () => {
-      const name = prompt("New branch name:"); if (!name) return;
-      getBackend().then(async base => {
-        const r = await fetch(`${base}/branch/`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}` },
-          body: JSON.stringify({ name })
-        });
-        if (r.ok) { alert("✅ Branch created"); populateSelect(base, branchSelect); }
-        else alert("❌ Could not create branch");
-      });
-    };
-    viewBranchesBtn.onclick = () => chrome.tabs.create({ url: "https://chat-commit.vercel.app/branches" });
+/* ──────────────────────────────────────────────────────────
+   Subscription
+────────────────────────────────────────────────────────── */
+export interface SubscriptionPayload {
+  // this will come from Stripe.js after collecting payment method
+  paymentMethodId: string
+  planId: string
+}
 
-    // ─── ROLLBACK & TIMELINE ───
-    rollbackBtn.onclick = () => chrome.tabs.create({ url: "https://chat-commit.vercel.app/rollback" });
-    timelineBtn.onclick = () => chrome.tabs.create({ url: "https://chat-commit.vercel.app/timeline" });
+export interface SubscriptionResponse {
+  subscribed: boolean
+  date_subscribed: string
+  date_subscription_expires: string
+}
 
-    // ─── MERGE PANEL ───
-    mergeBtn.onclick = async () => {
-      const base = await getBackend(); await populateSelect(base, mergeTargetSel, branchSelect.value);
-      mergeSource.value = branchSelect.selectedOptions[0].textContent;
-      mainPanel.style.display = "none"; mergePanel.style.display = "block"; mergeStatus.textContent = "";
-    };
-    executeMerge.onclick = async () => {
-      const src = mergeSource.value.match(/#(\d+)\)$/)?.[1]; const tgt = mergeTargetSel.value;
-      if (!src || !tgt) return mergeStatus.textContent = "❌ Select both source & target";
-      try {
-        const res = await fetch(`${await getBackend()}/merge?source_branch_id=${src}&target_branch_id=${tgt}`, { method: "POST", headers:{ Authorization:`Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`} });
-        const dd = await res.json();
-        mergeStatus.textContent = res.ok ? `✅ ${dd.message}` : `❌ ${dd.detail || JSON.stringify(dd)}`;
-      } catch { mergeStatus.textContent = "❌ Merge error"; }
-    };
-    cancelMerge.onclick = () => { mergePanel.style.display = "none"; mainPanel.style.display = "block"; };
+// Create or update subscription
+export const createSubscription = (
+  data: SubscriptionPayload
+): Promise<SubscriptionResponse> =>
+  api.post<SubscriptionResponse>('/subscription', data)
+     .then(res => res.data)
 
-    // ─── INITIALIZE ───
-    getBackend().then(base => { populateSelect(base, branchSelect); scrapeChat(base); });
-  }
-});
+// Fetch current subscription status
+export const fetchSubscription = (): Promise<SubscriptionResponse> =>
+  api.get<SubscriptionResponse>('/subscription')
+     .then(res => res.data)
+
+
+/* ──────────────────────────────────────────────────────────
+   Branches
+────────────────────────────────────────────────────────── */
+export const fetchBranches = (): Promise<Branch[]> =>
+  api.get<Branch[]>('/branch/')
+     .then(res => res.data)
+
+export const fetchBranch = (id: number): Promise<Branch> =>
+  api.get<Branch>(`/branch/${id}`)
+     .then(res => res.data)
+
+export const createBranch = (
+  name: string,
+  baseId?: number
+): Promise<Branch> =>
+  api.post<Branch>('/branch/', { name, base_commit_id: baseId })
+     .then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
+   Commits
+────────────────────────────────────────────────────────── */
+export const fetchBranchCommits = (branchId: number): Promise<Commit[]> =>
+  api.get<Commit[]>(`/branch/${branchId}/commits`)
+     .then(res => res.data)
+
+export const fetchCommit = (id: number): Promise<Commit> =>
+  api.get<Commit>(`/commit/${id}`)
+     .then(res => res.data)
+
+export const createCommit = (payload: {
+  commit_message: string
+  conversation_context: any
+  branch_id?: number
+}): Promise<Commit> =>
+  api.post<Commit>('/commit/', payload)
+     .then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
+   Timeline
+────────────────────────────────────────────────────────── */
+export const fetchTimeline = (params?: {
+  branch_id?: number
+  tag?: string
+  start_date?: string  // ISO‑8601
+  end_date?: string    // ISO‑8601
+}): Promise<Commit[]> =>
+  api.get<Commit[]>('/timeline', { params })
+     .then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
+   Tags
+────────────────────────────────────────────────────────── */
+export const fetchTags = (): Promise<Tag[]> =>
+  api.get<Tag[]>('/tag/')
+     .then(res => res.data)
+
+export const fetchCommitTags = (commitId: number): Promise<Tag[]> =>
+  api.get<Tag[]>(`/tag/commit/${commitId}`)
+     .then(res => res.data)
+
+export const fetchBranchTags = (branchId: number): Promise<Tag[]> =>
+  api.get<Tag[]>(`/tag/branch/${branchId}`)
+     .then(res => res.data)
+
+export const createTag = (name: string, commitId: number): Promise<Tag> =>
+  api.post<Tag>('/tag/', { name, commit_id: commitId })
+     .then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
+   Merge & Rollback
+────────────────────────────────────────────────────────── */
+// Merge source into target
+export const mergeBranches = (
+  sourceId: number,
+  targetId: number
+): Promise<{ message: string; merged_commits: string[] }> =>
+  api.post('/merge', null, {
+    params: { source_branch_id: sourceId, target_branch_id: targetId },
+  })
+     .then(res => res.data)
+
+// Roll back a branch
+export const rollbackBranch = (
+  branchId: number,
+  commitId: number
+): Promise<{ message: string }> =>
+  api.post<{ message: string }>(`/rollback/${branchId}/${commitId}`)
+     .then(res => res.data)
