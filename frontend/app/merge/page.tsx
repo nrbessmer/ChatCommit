@@ -1,14 +1,15 @@
+// frontend/app/components/MergeBranchesForm.tsx
 'use client'
 
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
-import { API_BASE } from '@/lib/api'   // ← centralised base URL
+import { API_BASE } from '@/lib/api'   // centralised base URL
 
 /* ──────────────────────────────────────────────────────────
    Types
 ────────────────────────────────────────────────────────── */
 export interface MergeFormProps {
-  onMerged?: (message: string) => void
+  onMerged?: (message: string) => void   // optional callback
 }
 
 interface Branch {
@@ -19,13 +20,13 @@ interface Branch {
 /* ──────────────────────────────────────────────────────────
    Component
 ────────────────────────────────────────────────────────── */
-export default function MergeForm({ onMerged }: MergeFormProps) {
+export default function MergeBranchesForm({ onMerged }: MergeFormProps) {
   const [branches, setBranches] = useState<Branch[]>([])
-  const [sourceId, setSourceId]   = useState('')
-  const [targetId, setTargetId]   = useState('')
-  const [status,   setStatus]     = useState('')
+  const [sourceId, setSourceId] = useState('')
+  const [targetId, setTargetId] = useState('')
+  const [status,   setStatus]   = useState('')
 
-  /* ─── Load branch list once ───────────────────────────── */
+  /* ── load branches once ──────────────────────────────── */
   useEffect(() => {
     axios
       .get<Branch[]>(`${API_BASE}/branch/`)
@@ -33,10 +34,10 @@ export default function MergeForm({ onMerged }: MergeFormProps) {
       .catch(err => console.error('Error loading branches:', err))
   }, [])
 
-  /* ─── Merge action ────────────────────────────────────── */
+  /* ── merge action ────────────────────────────────────── */
   const handleMerge = async () => {
     if (!sourceId || !targetId || sourceId === targetId) {
-      return alert('Please select two different branches to merge.')
+      return alert('Please select two *different* branches.')
     }
 
     try {
@@ -46,7 +47,6 @@ export default function MergeForm({ onMerged }: MergeFormProps) {
         null,
         { headers: { Authorization: `Bearer ${token}` } }
       )
-
       setStatus(res.data.message)
       onMerged?.(res.data.message)
     } catch (err: any) {
@@ -55,7 +55,7 @@ export default function MergeForm({ onMerged }: MergeFormProps) {
     }
   }
 
-  /* ─── Render ──────────────────────────────────────────── */
+  /* ── UI ──────────────────────────────────────────────── */
   return (
     <div className="p-4 bg-gray-900 text-gray-100 border border-gray-700 rounded">
       <h3 className="text-sm font-bold mb-3">Merge Branches</h3>
@@ -70,7 +70,7 @@ export default function MergeForm({ onMerged }: MergeFormProps) {
           <option value="">-- Select source branch --</option>
           {branches.map(b => (
             <option key={b.id} value={b.id}>
-              {b.name} (#{b.id})
+              {b.name} (#{b.id})
             </option>
           ))}
         </select>
@@ -84,7 +84,7 @@ export default function MergeForm({ onMerged }: MergeFormProps) {
           <option value="">-- Select target branch --</option>
           {branches.map(b => (
             <option key={b.id} value={b.id}>
-              {b.name} (#{b.id})
+              {b.name} (#{b.id})
             </option>
           ))}
         </select>
