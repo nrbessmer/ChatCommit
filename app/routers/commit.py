@@ -78,7 +78,7 @@ def create_commit(
         conversation_context=ctx_dict,
         branch_id=commit_in.branch_id,
         parent_commit_id=parent_commit_id,
-        created_by=current_user.id,
+        created_by_id=current_user.id,
     )
     db.add(db_commit)
     db.commit()
