@@ -1,59 +1,53 @@
 'use client'
 
-import { useState } from 'react'
-import { loginUser } from '@/lib/api'
+import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { loginUser } from '@/lib/api'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const router = useRouter()
 
-  const handleLogin = async () => {
-    setError(null)
-    setLoading(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
     try {
       const res = await loginUser({ email, password })
-      localStorage.setItem('auth_token', res.token)
-      router.push('/subscription') // or redirect to dashboard
-    } catch (err) {
+      // store the correct field name
+      localStorage.setItem('auth_token', res.access_token)
+      router.push('/subscription')
+    } catch {
       setError('Login failed. Check your credentials.')
-    } finally {
-      setLoading(false)
     }
   }
 
   return (
-    <div className="max-w-md mx-auto mt-20 bg-gray-900 text-white p-6 rounded-lg shadow-lg">
-      <h1 className="text-2xl font-bold mb-4 text-green-400">Login</h1>
-
-      {error && <p className="text-red-400 mb-3">{error}</p>}
-
-      <input
-        className="w-full mb-4 p-2 bg-gray-800 border border-gray-700 rounded"
-        placeholder="Email"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-
-      <input
-        className="w-full mb-4 p-2 bg-gray-800 border border-gray-700 rounded"
-        placeholder="Password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-
-      <button
-        onClick={handleLogin}
-        className="w-full py-2 bg-green-500 hover:bg-green-600 rounded disabled:opacity-50"
-        disabled={loading}
-      >
-        {loading ? 'Logging in…' : 'Log In'}
-      </button>
-    </div>
+    <main className="max-w-sm mx-auto mt-20">
+      <h1 className="text-2xl mb-4">Log In</h1>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          required
+          className="border p-2 rounded"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          className="border p-2 rounded"
+        />
+        <button type="submit" className="bg-blue-600 text-white py-2 rounded">
+          Log In
+        </button>
+        {error && <p className="text-red-500">{error}</p>}
+      </form>
+    </main>
   )
 }
