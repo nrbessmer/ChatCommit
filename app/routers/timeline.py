@@ -8,40 +8,32 @@ from ..database import get_db
 from ..models import Commit, Tag
 from ..schemas import CommitResponse
 
-router = APIRouter(
-    prefix="/timeline",          # ⇒ final URL is /timeline/ … (note the trailing “/”)
-    tags=["timeline"],
-)
+router = APIRouter()  # no prefix here
 
 @router.get(
-    "/",                         #  ⬑  *empty* path component → matches “/timeline/”
+    "/timeline",
     response_model=List[CommitResponse],
     summary="Return commits filtered by branch, tag or date range",
 )
 def get_timeline(
     db: Session = Depends(get_db),
-    branch_id: Optional[int] = Query(None, description="Filter by branch id"),
-    tag:       Optional[str] = Query(None, description="Filter by tag"),
-    start_date:Optional[datetime] = Query(None, description="ISO start date"),
-    end_date:  Optional[datetime] = Query(None, description="ISO end date"),
+    branch_id: Optional[int]   = Query(None, description="Filter by branch id"),
+    tag:       Optional[str]   = Query(None, description="Filter by tag"),
+    start_date: Optional[datetime] = Query(None, description="Start of date range"),
+    end_date:   Optional[datetime] = Query(None, description="End of date range"),
 ):
-    q = db.query(Commit)
-
+    query = db.query(Commit)
     if branch_id is not None:
-        q = q.filter(Commit.branch_id == branch_id)
+        query = query.filter(Commit.branch_id == branch_id)
     if start_date:
-        q = q.filter(Commit.created_at >= start_date)
+        query = query.filter(Commit.created_at >= start_date)
     if end_date:
-        q = q.filter(Commit.created_at <= end_date)
+        query = query.filter(Commit.created_at <= end_date)
 
-    commits = q.order_by(Commit.created_at.desc()).all()
+    commits = query.order_by(Commit.created_at.desc()).all()
 
-    # post‑filter by tag if requested
     if tag:
-        tagged_ids = {
-            t.commit_id
-            for t in db.query(Tag).filter(Tag.name == tag).all()
-        }
+        tagged_ids = {t.commit_id for t in db.query(Tag).filter(Tag.name == tag)}
         commits = [c for c in commits if c.id in tagged_ids]
 
     return commits

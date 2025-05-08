@@ -85,29 +85,15 @@ def on_startup():  #  Fifty
 # --- MOUNT ALL ROUTERS ---
 
 # Authentication (register, login, activate, token)
-app.include_router(auth.router, prefix="/auth/users", tags=["auth"])
-app.include_router(auth.router, prefix="/users", tags=["auth"])
-
-# User profile
-app.include_router(user.router, prefix="/users", tags=["user"])
-
-# Branch operations
-app.include_router(branch.router, prefix="/branch", tags=["branch"])
-
-# Commit operations (singular endpoint for extension and plural REST)
-app.include_router(commit.router, prefix="/commit", tags=["commit"])
-app.include_router(commit.router, prefix="/commits", tags=["commits"])
-
-# Tag operations
-app.include_router(tag.router, prefix="/tag", tags=["tag"])
-
-# Timeline and rollback
-app.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
-app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
-
-# Subscription & Stripe
+# Mount each router exactly once, with the desired prefix:
+app.include_router(auth.router,      prefix="/auth/users", tags=["auth"])
+app.include_router(user.router,      prefix="/users",      tags=["user"])
+app.include_router(branch.router,    prefix="/branch",     tags=["branch"])
+app.include_router(commit.router,    prefix="/commit",     tags=["commit"])
+app.include_router(commit.router,    prefix="/commits",    tags=["commits"])
+app.include_router(tag.router,       prefix="/tag",        tags=["tag"])
+app.include_router(timeline.router,  prefix="",            tags=["timeline"])  # uses its own "/timeline"
+app.include_router(merge.router,     prefix="",            tags=["merge"])     # uses its own "/merge"
+app.include_router(rollback.router,  prefix="/rollback",   tags=["rollback"])
 app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
-app.include_router(stripe.router, prefix="/stripe", tags=["stripe"])
-
-# Merge branches
-app.include_router(merge.router, prefix="/merge", tags=["merge"])  # 112 lines total
+app.include_router(stripe.router,    prefix="/stripe",     tags=["stripe"])
