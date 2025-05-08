@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Commit, Branch, User
 from ..schemas import CommitCreate, CommitResponse
-from app.config import SECRET_KEY, ALGORITHM  # adjust import path as needed
+from ..config import SECRET_KEY, ALGORITHM  # ensure this reads your ENV secret
 
 router = APIRouter(prefix="/commit", tags=["commits"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -78,7 +78,8 @@ def create_commit(
         conversation_context=ctx_dict,
         branch_id=commit_in.branch_id,
         parent_commit_id=parent_commit_id,
-        created_by_id=current_user.id,
+        # assign to the actual column name in your model
+        created_by=current_user.id,
     )
     db.add(db_commit)
     db.commit()
