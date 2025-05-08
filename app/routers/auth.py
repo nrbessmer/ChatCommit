@@ -5,14 +5,20 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+import secrets, os, jwt
+from jwt import PyJWTError
+
 from ..database import get_db
 from ..models import User
-from ..schemas import UserRegister, UserRead, UserActivate, UserActivateResponse,Token
+from ..schemas import (
+    UserRegister,
+    UserRead,
+    UserActivate,
+    UserActivateResponse,
+    Token,
+    UserActivateResponse,
+)
 from pydantic import BaseModel
-import secrets
-import os
-import jwt
-from jwt import PyJWTError
 
 # ─── Security / JWT setup ─────────────────────────────────
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -32,7 +38,10 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> User:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str | None = payload.get("sub")
@@ -47,7 +56,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 
 # ─── Registration ─────────────────────────────────────────
-@router.post("/register", response_model=UserRead)
+@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def register(user: UserRegister, db: Session = Depends(get_db)):
     if db.query(User).filter_by(email=user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -74,6 +83,8 @@ def login_for_access_token(
     user = db.query(User).filter_by(email=form_data.username).first()
     if not user or not pwd_context.verify(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    if not user.subscribed or (user.date_subscription_expires and user.date_subscription_expires < datetime.utcnow()):
+        raise HTTPException(status_code=403, detail="Subscription required")
     access = create_access_token({"sub": user.email})
     return {"access_token": access, "token_type": "bearer"}
 
@@ -84,25 +95,26 @@ class UserLoginJSON(BaseModel):
     password: str
 
 
-# ─── JSON‑based /users/login shim ─────────────────────────
-@router.post("/auth/users/login", response_model=Token)
-def login(user: UserLogin, db: Session = Depends(get_db)):
+# ─── JSON‑based /login endpoint ───────────────────────────
+@router.post("/login", response_model=Token)
+def login_json(user: UserLoginJSON, db: Session = Depends(get_db)):
     db_user = db.query(User).filter_by(email=user.email).first()
     if not db_user or not pwd_context.verify(user.password, db_user.password_hash):
-        raise HTTPException(401, "Invalid credentials")
-
-    # NEW: block non‑paying users
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     if not db_user.subscribed or (db_user.date_subscription_expires and db_user.date_subscription_expires < datetime.utcnow()):
-        raise HTTPException(403, "Subscription required to log in")
-
-    access_token = create_access_token({"sub": db_user.id})
+        raise HTTPException(status_code=403, detail="Subscription required")
+    access_token = create_access_token({"sub": db_user.email})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-# ─── Optional: alias POST /users/login to form‑flow ───────
-@router.post("/users/login-form", response_model=Token)
-def login_via_form(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
-):
-    return login_for_access_token(form_data, db)
+# ─── Activation ────────────────────────────────────────────
+@router.post("/activate", response_model=UserActivateResponse)
+def activate(payload: UserActivate, db: Session = Depends(get_db)):
+    user = db.query(User).filter_by(email=payload.email, token=payload.token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid activation token")
+    user.subscribed = True
+    user.date_subscribed = datetime.utcnow()
+    user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
+    db.commit()
+    return {"message": "Account activated, subscription is now active."}
