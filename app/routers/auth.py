@@ -97,7 +97,7 @@ class UserLoginJSON(BaseModel):
 
 # ─── JSON‑based /login endpoint ───────────────────────────
 @router.post("/login", response_model=Token)
-def login_json(user: UserLoginJSON, db: Session = Depends(get_db)):
++def login(user: UserLoginJSON, db: Session = Depends(get_db)):
     db_user = db.query(User).filter_by(email=user.email).first()
     if not db_user or not pwd_context.verify(user.password, db_user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
