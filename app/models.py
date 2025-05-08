@@ -1,5 +1,3 @@
-// popup.js — Full file with debug logging and correct endpoints
-
 document.addEventListener("DOMContentLoaded", () => {
   // ───── SETUP PANELS ─────
   const loginPanel    = document.getElementById("login-panel");
