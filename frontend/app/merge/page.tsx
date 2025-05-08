@@ -1,14 +1,13 @@
-// frontend/app/merge/page.tsx
-'use client'
+'use client';
 
-import React from 'react'
-import MergeForm from '@/components/MergeForm'   // <-- point at the actual filename
+import React from 'react';
+import MergeForm from '@/components/MergeForm';
 
 export default function MergePage() {
   return (
-    <div className="max-w-md mx-auto mt-10">
-      <MergeForm onMerged={(msg) => alert(msg)} />
-    </div>
-  )
+    <main className="max-w-3xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">🔀 Merge Branches</h1>
+      <MergeForm />
+    </main>
+  );
 }
-

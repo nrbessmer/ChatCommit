@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Usage: ./deploy.sh [commit-message]
+# If a commit message is provided as the first argument, it will be used;
+# otherwise, a default message is applied.
+COMMIT_MSG="${1:-🔄 Update and deploy latest changes}"
+
 # ==== CONFIGURATION ====
 FRONTEND_DIR="frontend"
 BACKEND_DIR="."
@@ -9,8 +14,9 @@ VERCEL_SCOPE="nicholas-bessmers-projects"  # ← your Vercel scope
 
 # ==== STEP 1: COMMIT & PUSH ====
 echo "📦  Committing and pushing code…"
+echo "    ↳ commit message: $COMMIT_MSG"
 git add .
-git commit -m "🔄 Update and deploy latest changes" || true
+git commit -m "$COMMIT_MSG" || true
 git push origin main
 
 # ==== STEP 2: DEPLOY BACKEND TO FLY.IO ====
