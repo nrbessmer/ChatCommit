@@ -14,6 +14,7 @@ from app.routers import (
     branch,
     commit,
     tag,
+    merge,
     timeline,
     rollback,
     user,
