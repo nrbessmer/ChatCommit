@@ -88,7 +88,7 @@ def on_startup():
 # All of these will be under /auth/users, /branch, /commit, etc.
 app.include_router(auth.router, prefix="/auth/users", tags=["auth"])
 app.include_router(branch.router, prefix="/branch", tags=["branch"])
-app.include_router(commit.router, prefix="/commit", tags=["commit"])
+app.include_router(commit.router, prefix="/commits", tags=["commits"])
 app.include_router(tag.router, prefix="/tag", tags=["tag"])
 app.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
 app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
