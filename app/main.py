@@ -42,7 +42,6 @@ def health():
 
 def initialize_default_branch():
     db: Session = SessionLocal()
-    # only run if the branches table exists
     result = db.execute(text(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='branches'"
     ))
@@ -51,7 +50,6 @@ def initialize_default_branch():
         return
 
     if db.query(Branch).count() == 0:
-        # create the "init" commit
         commit_hash = hashlib.sha1(b"init").hexdigest()
         init_commit = Commit(
             commit_hash=commit_hash,
@@ -64,7 +62,6 @@ def initialize_default_branch():
         db.commit()
         db.refresh(init_commit)
 
-        # then the "main" branch
         main_branch = Branch(name="main", current_commit_id=init_commit.id)
         db.add(main_branch)
         db.commit()
@@ -84,16 +81,27 @@ def on_startup():
 
 # --- MOUNT ALL ROUTERS ---
 
-# ─── ROUTERS ───────────────────────────────────────────────────
-# All of these will be under /auth/users, /branch, /commit, etc.
+# Authentication (register, login, activate, token)
 app.include_router(auth.router, prefix="/auth/users", tags=["auth"])
+app.include_router(auth.router, prefix="/users", tags=["auth"])
+
+# User profile
+app.include_router(user.router, prefix="/users", tags=["user"])
+
+# Branch operations
 app.include_router(branch.router, prefix="/branch", tags=["branch"])
-app.include_router(commit.router,     prefix="/commit",    tags=["commit"])
+
+# Commit operations (singular endpoint for extension and plural REST)
+app.include_router(commit.router, prefix="/commit", tags=["commit"])
+app.include_router(commit.router, prefix="/commits", tags=["commits"])
+
+# Tag operations
 app.include_router(tag.router, prefix="/tag", tags=["tag"])
+
+# Timeline and rollback
 app.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
 app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
-# mount the same auth router under both prefixes
-app.include_router(auth.router,       prefix="/auth/users", tags=["auth"])
-app.include_router(auth.router,       prefix="/users",      tags=["auth"])
+
+# Subscription & Stripe
 app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
 app.include_router(stripe.router, prefix="/stripe", tags=["stripe"])
