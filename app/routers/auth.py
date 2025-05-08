@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User
-from ..schemas import UserRegister, UserRead, Token
+from ..schemas import UserRegister, UserRead, UserActivate, UserActivateResponse,Token
 from pydantic import BaseModel
 import secrets
 import os
