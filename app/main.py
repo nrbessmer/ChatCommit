@@ -86,26 +86,14 @@ def on_startup():
 
 # --- MOUNT ALL ROUTERS ---
 
-# auth (e.g. /auth/register, /auth/token)
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
-
-# branches:       GET/POST /branch, GET /branch/{id}, etc.
-app.include_router(branch.router, prefix="/branch", tags=["branches"])
-
-# commits:        router.prefix="/commit" inside commit.py, so this yields /commit/…
-app.include_router(commit.router, tags=["commits"])
-
-# tags:           /tag/…
-app.include_router(tag.router, prefix="/tag", tags=["tags"])
-
-# timeline:       /timeline/…
+# ─── ROUTERS ───────────────────────────────────────────────────
+# All of these will be under /auth/users, /branch, /commit, etc.
+app.include_router(auth.router, prefix="/auth/users", tags=["auth"])
+app.include_router(branch.router, prefix="/branch", tags=["branch"])
+app.include_router(commit.router, prefix="/commit", tags=["commit"])
+app.include_router(tag.router, prefix="/tag", tags=["tag"])
 app.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
-
-# rollback:       /rollback/{branch_id}/{commit_id}
 app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
-
-# user, subscription, stripe
-app.include_router(user.router, prefix="/user", tags=["users"])
-app.include_router(subscription.router, prefix="/subscription", tags=["subscriptions"])
+app.include_router(user.router, prefix="/users", tags=["user"])
+app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
 app.include_router(stripe.router, prefix="/stripe", tags=["stripe"])
-app.include_router(auth_router, prefix="/auth/users", tags=["auth"])
