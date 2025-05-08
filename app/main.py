@@ -105,3 +105,7 @@ app.include_router(rollback.router, prefix="/rollback", tags=["rollback"])
 # Subscription & Stripe
 app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
 app.include_router(stripe.router, prefix="/stripe", tags=["stripe"])
+
+#merge
+
+app.include_router(merge.router, prefix="/merge", tags=["merge"])
