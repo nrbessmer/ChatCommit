@@ -56,11 +56,9 @@ export interface UserLoginPayload {
   password: string
 }
 
-// Now includes both the raw access_token and a friendly `token` alias
 export interface AuthResponse {
   access_token: string
   token_type: string
-  token: string
 }
 
 export interface UserProfile {
@@ -82,7 +80,7 @@ export const registerUser = (
     .post<UserProfile>('/auth/users/register', data)
     .then(res => res.data)
 
-// Activate account via emailed token
+// Activate account
 export const activateUser = (
   email: string,
   token: string
@@ -91,22 +89,17 @@ export const activateUser = (
     .post<{ message: string }>('/auth/users/activate', { email, token })
     .then(res => res.data)
 
-// OAuth2 form‑data token (for Postman, etc.)
+// OAuth2 form‑data token (for Postman, curl, etc.)
 export const loginWithForm = (
   username: string,
   password: string
 ): Promise<AuthResponse> =>
   api
-    .post<AuthResponse>(
-      '/auth/users/token',
-      new URLSearchParams({ username, password }),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-    )
-    .then(res => {
-      // add convenience alias
-      ;(res.data as any).token = res.data.access_token
-      return res.data
+    .post<AuthResponse>('/auth/users/token', undefined, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      params: { username, password }
     })
+    .then(res => res.data)
 
 // JSON login shim
 export const loginUser = (
@@ -114,22 +107,17 @@ export const loginUser = (
 ): Promise<AuthResponse> =>
   api
     .post<AuthResponse>('/auth/users/login', data)
-    .then(res => {
-      ;(res.data as any).token = res.data.access_token
-      return res.data
-    })
+    .then(res => res.data)
 
-// Fetch current user's profile
+// Fetch current user's profile (requires Authorization header)
 export const fetchUserProfile = (): Promise<UserProfile> =>
   api
     .get<UserProfile>('/users/me')
     .then(res => res.data)
 
-// Request extension install instructions via email
+// Request extension install instructions
 export const sendExtensionInstructions = (): Promise<void> =>
-  api
-    .post<void>('/users/extension-instructions')
-    .then(res => res.data)
+  api.post<void>('/users/extension-instructions').then(res => res.data)
 
 
 /* ──────────────────────────────────────────────────────────
@@ -156,113 +144,88 @@ export const createSubscription = (
 
 // Fetch current subscription status
 export const fetchSubscription = (): Promise<SubscriptionResponse> =>
-  api
-    .get<SubscriptionResponse>('/subscription')
-    .then(res => res.data)
+  api.get<SubscriptionResponse>('/subscription').then(res => res.data)
 
 
 /* ──────────────────────────────────────────────────────────
    Branches
 ────────────────────────────────────────────────────────── */
 export const fetchBranches = (): Promise<Branch[]> =>
-  api
-    .get<Branch[]>('/branch/')
-    .then(res => res.data)
+  api.get<Branch[]>('/branch/').then(res => res.data)
 
 export const fetchBranch = (id: number): Promise<Branch> =>
-  api
-    .get<Branch>(`/branch/${id}`)
-    .then(res => res.data)
+  api.get<Branch>(`/branch/${id}`).then(res => res.data)
 
 export const createBranch = (
   name: string,
   baseId?: number
 ): Promise<Branch> =>
-  api
-    .post<Branch>('/branch/', { name, base_commit_id: baseId })
-    .then(res => res.data)
+  api.post<Branch>('/branch/', { name, base_commit_id: baseId }).then(res => res.data)
 
 
 /* ──────────────────────────────────────────────────────────
    Commits
 ────────────────────────────────────────────────────────── */
 export const fetchBranchCommits = (branchId: number): Promise<Commit[]> =>
-  api
-    .get<Commit[]>(`/branch/${branchId}/commits`)
-    .then(res => res.data)
+  api.get<Commit[]>(`/branch/${branchId}/commits`).then(res => res.data)
 
 export const fetchCommit = (id: number): Promise<Commit> =>
-  api
-    .get<Commit>(`/commit/${id}`)
-    .then(res => res.data)
+  api.get<Commit>(`/commit/${id}`).then(res => res.data)
 
 export const createCommit = (payload: {
   commit_message: string
   conversation_context: any
   branch_id?: number
 }): Promise<Commit> =>
-  api
-    .post<Commit>('/commit/', payload)
-    .then(res => res.data)
+  api.post<Commit>('/commit/', payload).then(res => res.data)
 
 
 /* ──────────────────────────────────────────────────────────
    Timeline
 ────────────────────────────────────────────────────────── */
+// Note the trailing slash on timeline to avoid redirects!
 export const fetchTimeline = (params?: {
   branch_id?: number
   tag?: string
   start_date?: string  // ISO‑8601
   end_date?: string    // ISO‑8601
-}): Promise<Commit[]> => {
-  // Always call /timeline/ and pass filters as query params
-  return api
-    .get<Commit[]>('/timeline/', { params })
-    .then(res => res.data)
-}
+}): Promise<Commit[]> =>
+  api.get<Commit[]>('/timeline/', { params }).then(res => res.data)
 
 
 /* ──────────────────────────────────────────────────────────
    Tags
 ────────────────────────────────────────────────────────── */
 export const fetchTags = (): Promise<Tag[]> =>
-  api
-    .get<Tag[]>('/tag/')
-    .then(res => res.data)
+  api.get<Tag[]>('/tag/').then(res => res.data)
 
 export const fetchCommitTags = (commitId: number): Promise<Tag[]> =>
-  api
-    .get<Tag[]>(`/tag/commit/${commitId}`)
-    .then(res => res.data)
+  api.get<Tag[]>(`/tag/commit/${commitId}`).then(res => res.data)
 
 export const fetchBranchTags = (branchId: number): Promise<Tag[]> =>
-  api
-    .get<Tag[]>(`/tag/branch/${branchId}`)
-    .then(res => res.data)
+  api.get<Tag[]>(`/tag/branch/${branchId}`).then(res => res.data)
 
 export const createTag = (name: string, commitId: number): Promise<Tag> =>
-  api
-    .post<Tag>('/tag/', { name, commit_id: commitId })
-    .then(res => res.data)
+  api.post<Tag>('/tag/', { name, commit_id: commitId }).then(res => res.data)
 
 
 /* ──────────────────────────────────────────────────────────
    Merge & Rollback
 ────────────────────────────────────────────────────────── */
-// Merge source → target (path‑style)
+// Merge source into target (path‑style)
 export const mergeBranches = (
   sourceId: number,
   targetId: number
 ): Promise<{ message: string; merged_commits: string[] }> =>
   api
-    .post<{ message: string; merged_commits: string[] }>(`/merge/${sourceId}/${targetId}`)
+    .post<{ message: string; merged_commits: string[] }>(
+      `/merge/${sourceId}/${targetId}`
+    )
     .then(res => res.data)
 
-// Roll back a branch to a commit
+// Roll back a branch
 export const rollbackBranch = (
   branchId: number,
   commitId: number
 ): Promise<{ message: string }> =>
-  api
-    .post<{ message: string }>(`/rollback/${branchId}/${commitId}`)
-    .then(res => res.data)
+  api.post<{ message: string }>(`/rollback/${branchId}/${commitId}`).then(res => res.data)
