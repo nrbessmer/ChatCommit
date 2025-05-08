@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Branch, Commit
 from ..schemas import BranchCreate, BranchResponse, CommitResponse
-from ..routers.auth import get_current_user  # only if you enforce auth
+# from ..routers.auth import get_current_user  # if you enforce auth
 
 router = APIRouter(
     prefix="/branch",
@@ -24,21 +24,12 @@ router = APIRouter(
 def create_branch(
     branch: BranchCreate,
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
 ):
-    # Validate base commit if provided
     if branch.base_commit_id is not None:
-        base_commit = (
-            db.query(Commit)
-            .filter(Commit.id == branch.base_commit_id)
-            .first()
-        )
+        base_commit = db.query(Commit).get(branch.base_commit_id)
         if not base_commit:
-            raise HTTPException(
-                status_code=404, detail="Base commit not found"
-            )
+            raise HTTPException(status_code=404, detail="Base commit not found")
 
-    # Create branch
     db_branch = Branch(
         name=branch.name,
         current_commit_id=branch.base_commit_id,
@@ -56,7 +47,6 @@ def create_branch(
 )
 def list_branches(
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
 ):
     return db.query(Branch).all()
 
@@ -69,7 +59,6 @@ def list_branches(
 def get_branch(
     branch_id: int,
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
 ):
     branch = db.query(Branch).get(branch_id)
     if not branch:
@@ -85,7 +74,6 @@ def get_branch(
 def get_commits_for_branch(
     branch_id: int,
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
 ):
     branch = db.query(Branch).get(branch_id)
     if not branch:
@@ -108,7 +96,6 @@ def get_commits_for_branch(
 def get_branch_head(
     branch_id: int,
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
 ):
     branch = db.query(Branch).get(branch_id)
     if not branch:
@@ -116,8 +103,7 @@ def get_branch_head(
 
     head_commit = (
         db.query(Commit)
-        .filter(Commit.id == branch.current_commit_id)
-        .first()
+        .get(branch.current_commit_id)
     )
     return {
         "branch": branch.name,
