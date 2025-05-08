@@ -8,12 +8,9 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Branch, Commit
 from ..schemas import BranchCreate, BranchResponse, CommitResponse
-# from ..routers.auth import get_current_user  # if you enforce auth
+# from ..routers.auth import get_current_user  # uncomment if you enforce auth
 
-router = APIRouter(
-    prefix="/branch",
-    tags=["branches"],
-)
+router = APIRouter(tags=["branches"])
 
 
 @router.post(
@@ -24,11 +21,18 @@ router = APIRouter(
 def create_branch(
     branch: BranchCreate,
     db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user),
 ):
     if branch.base_commit_id is not None:
-        base_commit = db.query(Commit).get(branch.base_commit_id)
+        base_commit = (
+            db.query(Commit)
+            .filter(Commit.id == branch.base_commit_id)
+            .first()
+        )
         if not base_commit:
-            raise HTTPException(status_code=404, detail="Base commit not found")
+            raise HTTPException(
+                status_code=404, detail="Base commit not found"
+            )
 
     db_branch = Branch(
         name=branch.name,
@@ -47,6 +51,7 @@ def create_branch(
 )
 def list_branches(
     db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user),
 ):
     return db.query(Branch).all()
 
@@ -59,6 +64,7 @@ def list_branches(
 def get_branch(
     branch_id: int,
     db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user),
 ):
     branch = db.query(Branch).get(branch_id)
     if not branch:
@@ -74,6 +80,7 @@ def get_branch(
 def get_commits_for_branch(
     branch_id: int,
     db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user),
 ):
     branch = db.query(Branch).get(branch_id)
     if not branch:
@@ -96,16 +103,19 @@ def get_commits_for_branch(
 def get_branch_head(
     branch_id: int,
     db: Session = Depends(get_db),
+    # current_user=Depends(get_current_user),
 ):
     branch = db.query(Branch).get(branch_id)
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
 
-    head_commit = (
+    head = (
         db.query(Commit)
-        .get(branch.current_commit_id)
+        .filter(Commit.id == branch.current_commit_id)
+        .first()
     )
+
     return {
         "branch": branch.name,
-        "head_commit": head_commit,
+        "head_commit": head,
     }
