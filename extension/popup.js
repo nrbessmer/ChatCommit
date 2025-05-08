@@ -18,32 +18,34 @@ document.addEventListener("DOMContentLoaded", () => {
     initApp();
   }
 
-// ───── LOGIN LOGIC ─────
-document.getElementById("login-submit").onclick = async () => {
-  const email    = document.getElementById("login-email").value.trim();
-  const password = document.getElementById("login-password").value;
-  loginStatus.textContent = "⏳ Logging in…";
+  // ───── LOGIN LOGIC ─────
+  document.getElementById("login-submit").onclick = async () => {
+    const email    = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    loginStatus.textContent = "⏳ Logging in…";
 
-  try {
-    const res = await fetch(`${API_BASE}/users/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
-    });
+    try {
+     const res = await fetch(`${API_BASE}/users/login`, {
+    const res = await fetch(`${API_BASE}/auth/users/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
 
-    if (!res.ok) throw new Error(`Login failed (${res.status})`);
-    const { access_token } = await res.json();
-    localStorage.setItem(STORAGE_KEY_TOKEN, access_token);
+      if (!res.ok) throw new Error(`Login failed (${res.status})`);
+      const { access_token } = await res.json();
+      localStorage.setItem(STORAGE_KEY_TOKEN, access_token);
 
-    loginStatus.textContent = "✅ Success!";
-    loginPanel.style.display = "none";
-    mainPanel.style.display  = "block";
-    initApp();
-  } catch (err) {
-    console.error("Login error:", err);
-    loginStatus.textContent = "❌ Login failed";
-  }
-};
+      loginStatus.textContent = "✅ Success!";
+      loginPanel.style.display = "none";
+      mainPanel.style.display  = "block";
+      initApp();
+    } catch (err) {
+      console.error("Login error:", err);
+      loginStatus.textContent = "❌ Login failed";
+    }
+  };
+
 
   // ───── MAIN APP ─────
   function initApp() {
