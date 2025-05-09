@@ -1,133 +1,93 @@
-/* popup.css */
-/* Larger, resizable panel */
+/* Base reset & font */
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  margin: 0;
-  background: linear-gradient(135deg, #222, #111);
-  color: #fff;
-  font-family: Tahoma, sans-serif;
-  width: 700px;
-  height: 900px;
-  overflow: hidden; /* no scroll */
+  font-family: 'Segoe UI', sans-serif;
+  background: #f5f6fa;
+  color: #333;
+  width: 380px; padding: 16px;
 }
 
-.container { padding: 16px; }
-
-/* Logo */
-.logo {
-  width: 60px;
-  display: block;
-  margin: 0 auto 8px;
+/* Container panels */
+.container {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 20px;
+  margin-bottom: 16px;
 }
 
-/* Title */
+/* Headers */
 .header {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2f3640;
   text-align: center;
-  font-size: 20px;
-  font-weight: bold;
-  margin: 4px 0;
+  margin-bottom: 16px;
 }
 
-/* Brand colors */
-.chat   { color:#fff; }
-.commit { color:orange; }
-
-/* Subtitle */
-.subtitle {
-  text-align: center;
-  font-size: 11px;
-  color: gray;
-  margin-bottom: 12px;
+/* Fieldsets */
+.fieldset {
+  border: 1px solid #dcdde1;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.fieldset legend {
+  font-weight: 500;
+  color: #353b48;
+  margin-bottom: 8px;
 }
 
 /* Labels */
 label {
   display: block;
-  margin: 10px 0 4px;
-  font-weight: bold;
-  color: #00ff99;
-}
-
-/* Inputs & textareas */
-select,
-textarea,
-input[type="text"],
-input[type="password"] {
-  width: 100%;
-  border: 1px solid #444;
-  border-radius: 6px;
-  padding: 8px;
-  background-color: #222;
-  color: #fff;
   font-size: 14px;
-  font-family: Tahoma, sans-serif;
+  margin: 8px 0 4px;
+  color: #2f3640;
 }
 
-/* Context area */
-textarea#context-area {
+/* Inputs & selects */
+input[type="text"], input[type="password"], select, textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #dcdde1;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 8px;
+  background: #f5f6fa;
+}
+
+/* Textareas specific */
+textarea {
   resize: vertical;
-  height: 250px;
-  max-height: 400px;
-  overflow: auto;
-  scrollbar-color: purple #222;
 }
 
 /* Buttons */
-button {
+.btn {
+  display: inline-block;
   width: 100%;
-  margin-top: 8px;
-  padding: 8px;
+  padding: 10px;
   border: none;
   border-radius: 6px;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 500;
   cursor: pointer;
-  font-family: Tahoma, sans-serif;
-}
-
-/* Variants */
-.primary { background:#22c55e; color:#000; }
-.blue    { background:#2962ff; color:#fff; }
-.purple  { background:purple;  color:#fff; }
-.green   { background:#22c55e; color:#000; }
-/* Log Out */
-.red     { background:#e11d48; color:#fff; }
-
-/* Button group */
-.button-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-.button-group button { flex:1 1 45%; background:#333; color:#fff; }
-
-/* Status messages */
-#status-message,
-#login-status {
-  font-size: 12px;
   margin-top: 8px;
-  color: orange;
+}
+.btn.small { width: 48%; margin-right: 4%; }
+.btn.primary { background: #0984e3; color: #fff; }
+.btn.danger  { background: #d63031; color: #fff; }
+.btn:not(.primary):not(.danger) {
+  background: #dfe6e9; color: #2d3436;
+}
+.button-group {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+
+/* Status / messages */
+.message {
+  font-size: 12px;
+  color: #e17055;
   text-align: center;
-}
-
-/* Collapsible */
-.collapsible-label {
-  cursor: pointer;
-  font-weight: bold;
-  color: #ffd700;
-  margin-top: 12px;
-}
-details[open] > summary::after { content:"▲"; float:right; }
-details:not([open]) > summary::after { content:"▼"; float:right; }
-summary { list-style:none; }
-summary::-webkit-details-marker { display:none; }
-
-/* Login panel centering */
-#login-panel input,
-#login-panel button { margin-top:6px; }
-#login-panel {
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  height:100%;
+  margin-top: 8px;
 }

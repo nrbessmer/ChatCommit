@@ -1,4 +1,3 @@
-<!-- popup.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,103 +8,72 @@
 <body>
   <!-- ───────── LOGIN ───────── -->
   <div class="container" id="login-panel">
-    <h1 class="header">
-      <span class="chat">Chat</span><span class="commit">Commit</span>
-    </h1>
+    <h1 class="header">ChatCommit</h1>
 
     <label for="login-email">Email</label>
-    <input type="text" id="login-email" placeholder="you@example.com" />
+    <input type="text" id="login-email" placeholder="you@example.com"/>
 
     <label for="login-password">Password</label>
-    <input type="password" id="login-password" placeholder="your password" />
+    <input type="password" id="login-password" placeholder="your password"/>
 
-    <button id="login-submit" class="primary">🔐 Log In</button>
+    <button id="login-submit" class="btn primary">Log In</button>
     <p id="login-status" class="message"></p>
-
-    <p class="subtitle">© 2025 Tully EDM Vibe | info@tullyedmvibe.com</p>
   </div>
 
   <!-- ───────── MAIN ───────── -->
   <div class="container" id="main-panel" style="display:none">
-    <img src="icon.png" class="logo" alt="ChatCommit Logo" />
-    <h1 class="header">
-      <span class="chat">Chat</span><span class="commit">Commit</span>
-    </h1>
-    <p class="subtitle">© 2025 Tully EDM Vibe | info@tullyedmvibe.com</p>
+    <h1 class="header">ChatCommit</h1>
 
-    <button id="refresh-chat" class="blue">🔄 Refresh Chat</button>
+    <button id="refresh-chat" class="btn">Refresh</button>
 
-    <details id="branch-section">
-      <summary class="collapsible-label">🌿 Branch Options</summary>
-      <label for="branch-select">Branch</label>
+    <section class="fieldset">
+      <legend>Branch</legend>
       <select id="branch-select"></select>
-      <button id="create-branch" class="blue">➕ Create Branch</button>
-      <button id="view-branches" class="blue">📂 View Branches</button>
-    </details>
+      <button id="create-branch" class="btn small">New Branch</button>
+    </section>
 
-    <label for="message-input">Commit Message</label>
+    <label for="message-input">Commit Message</label>
     <textarea id="message-input" rows="3" placeholder="Describe your changes"></textarea>
 
-    <label for="context-area">Conversation Context (Read‑Only)</label>
-    <textarea id="context-area" readonly></textarea>
-    <button id="copy-context" class="purple">📋 Copy Context</button>
+    <section class="fieldset">
+      <legend>Context</legend>
+      <textarea id="context-area" readonly></textarea>
+      <button id="copy-context" class="btn small">Copy Context</button>
+    </section>
 
-    <label for="tag-input">Add Tag (optional)</label>
-    <input type="text" id="tag-input" placeholder="e.g. UI‑fix" />
+    <label for="tag-input">Tag (optional)</label>
+    <input type="text" id="tag-input" placeholder="e.g. ui-fix"/>
 
-    <button id="commit-btn" class="primary">💾 Commit</button>
+    <button id="commit-btn" class="btn primary">Commit</button>
 
-    <div class="button-group">
-      <button id="merge-btn">🔀 Merge</button>
-      <button id="rollback-btn">⏪ Rollback</button>
-      <button id="timeline-btn">🕒 Timeline</button>
-      <button id="settings-btn">⚙️ Settings</button>
-      <!-- Added Log Out -->
-      <button id="logout-btn" class="red">🚪 Log Out</button>
-    </div>
+    <section class="button-group">
+      <button id="merge-btn" class="btn">Merge</button>
+      <button id="rollback-btn" class="btn">Rollback</button>
+      <button id="timeline-btn" class="btn">Timeline</button>
+      <button id="settings-btn" class="btn">Settings</button>
+      <button id="logout-btn" class="btn danger">Log Out</button>
+    </section>
 
     <p id="status-message" class="message"></p>
   </div>
 
-  <!-- ───────── SETTINGS ───────── -->
-  <div class="container" id="settings-panel" style="display:none">
-    <h2 class="header">ChatCommit Settings</h2>
+  <!-- ───────── MERGE ───────── -->
+  <div class="container" id="merge-panel" style="display:none">
+    <h2 class="header">Merge Branches</h2>
 
-    <label for="openai-key">OpenAI API Key</label>
-    <input type="text" id="openai-key" placeholder="sk‑…" />
+    <label for="merge-source">Source Branch</label>
+    <select id="merge-source"></select>
 
-    <label for="backend-url">Backend Repo URL</label>
-    <input type="text" id="backend-url" placeholder="https://chatcommit.fly.dev" />
-
-    <label for="repo-hook">Repo Hook (optional)</label>
-    <input type="text" id="repo-hook" placeholder="(not used yet)" />
+    <label for="merge-target">Target Branch</label>
+    <select id="merge-target"></select>
 
     <div class="button-group">
-      <button id="save-settings" class="green">💾 Save</button>
-      <button id="back-btn">⬅️ Back</button>
+      <button id="execute-merge" class="btn primary small">Confirm</button>
+      <button id="cancel-merge" class="btn small">Cancel</button>
     </div>
+
+    <p id="merge-status" class="message"></p>
   </div>
-
-  <!-- ───────── MERGE ───────── -->
-<div class="container" id="merge-panel" style="display:none">
-  <h2 class="header">🔀 Merge Branches</h2>
-
-  <!-- Source branch selector -->
-  <label for="merge-source">Source Branch</label>
-  <select id="merge-source"></select>
-
-  <!-- Target branch selector -->
-  <label for="merge-target">Target Branch</label>
-  <select id="merge-target"></select>
-
-  <div class="button-group">
-    <button id="execute-merge" class="blue">✅ Confirm</button>
-    <button id="cancel-merge">⬅️ Cancel</button>
-  </div>
-
-  <p id="merge-status" class="message"></p>
-</div>
-
 
   <script src="popup.js"></script>
 </body>
