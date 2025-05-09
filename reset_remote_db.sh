@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Fly app name (defaults to “chatcommit” if you don’t pass one)
 APP=${1:-chatcommit}
-DB_PATH=${2:-/data/chatcommit.db}
 
 fly ssh console -a "$APP" --command "
-  echo '🚮 Deleting $DB_PATH'
-  rm -f $DB_PATH
+  echo '🚮 Removing old SQLite files…'
+  rm -f /data/chatcommit.db /data/dev.db
 
-  echo '🛠  Recreating schema...'
+  echo '🛠  Creating schema and default branch…'
   python3 - << 'PYCODE'
 from app.database import engine, Base
+from app.main import initialize_default_branch
+
+# 1) Create all tables
 Base.metadata.create_all(bind=engine)
-print('✅ Schema created.')
+# 2) Initialize the default branch & init commit
+initialize_default_branch()
+
+print('✅ Reset complete.')
 PYCODE
 "
-
