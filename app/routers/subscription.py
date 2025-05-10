@@ -19,7 +19,11 @@ logger.setLevel(logging.INFO)
 # Validate required env vars at import time
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_PRICE_ID   = os.getenv("STRIPE_PRICE_ID")
-print("▶︎ Using Stripe key:", stripe.api_key[:10] + "…" )  # only first few charsif not STRIPE_SECRET_KEY:
+
+print("▶︎ Using Stripe key:", STRIPE_SECRET_KEY[:8] + "…" )  # only first few chars
+
+
+if not STRIPE_SECRET_KEY:
     raise RuntimeError("Missing STRIPE_SECRET_KEY env var")
 if not STRIPE_PRICE_ID:
     raise RuntimeError("Missing STRIPE_PRICE_ID env var")
