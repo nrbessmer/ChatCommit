@@ -1,3 +1,4 @@
+// app/subscription/page.tsx
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -28,7 +29,6 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
     if (!stripe || !elements) return
     setLoading(true)
 
-    // grab the card-number element
     const card = elements.getElement(CardNumberElement)
     if (!card) {
       setMessage('❌ Card element not found')
@@ -76,18 +76,15 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
           <label className="block mb-1 text-gray-700">Card number</label>
           <CardNumberElement options={{ style: { base: { fontSize: '16px' } } }} />
         </div>
+
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black flex gap-4">
           <div className="flex-1">
             <label className="block mb-1 text-gray-700">Expiry</label>
-            <CardExpiryElement
-              options={{ style: { base: { fontSize: '16px' } } }}
-            />
+            <CardExpiryElement options={{ style: { base: { fontSize: '16px' } } }} />
           </div>
           <div className="flex-1">
             <label className="block mb-1 text-gray-700">CVC</label>
-            <CardCvcElement
-              options={{ style: { base: { fontSize: '16px' } } }}
-            />
+            <CardCvcElement options={{ style: { base: { fontSize: '16px' } } }} />
           </div>
         </div>
       </div>
@@ -101,9 +98,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       </button>
 
       {message && (
-        <p className="mt-4 text-sm text-yellow-300 whitespace-pre-wrap">
-          {message}
-        </p>
+        <p className="mt-4 text-sm text-yellow-300 whitespace-pre-wrap">{message}</p>
       )}
     </div>
   )
@@ -111,14 +106,13 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
 
 export default function SubscriptionPage() {
   const router = useRouter()
-  const [stripePromise, setStripePromise] =
-    useState<Promise<Stripe | null> | null>(null)
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
   const [priceId, setPriceId] = useState<string>('')
   const [checking, setChecking] = useState(true)
   const [already, setAlready] = useState(false)
 
   useEffect(() => {
-    // 1) must be logged in
+    // 1) Redirect if not logged in
     const token = typeof window !== 'undefined'
       ? localStorage.getItem('auth_token')
       : null
@@ -127,21 +121,21 @@ export default function SubscriptionPage() {
       return
     }
 
-    // 2) check if already subscribed
+    // 2) Check existing subscription
     fetchSubscription()
       .then(() => setAlready(true))
       .catch(() => {
-        // 404 or 400 means no active subscription
+        // 404 means no active subscription
       })
       .finally(() => {
-        // 3) load Stripe config
+        // 3) Load Stripe config
         api
           .get<StripeConfig>('/stripe/config')
           .then(res => {
             setPriceId(res.data.priceId)
             setStripePromise(loadStripe(res.data.publishableKey))
           })
-          .catch(err => console.error('Stripe config load failed', err))
+          .catch(err => console.error('Failed to load Stripe config:', err))
           .finally(() => setChecking(false))
       })
   }, [router])
