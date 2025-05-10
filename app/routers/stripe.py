@@ -2,54 +2,78 @@
 
 import os
 import stripe
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User
 from ..routers.auth import get_current_user
 
-router = APIRouter(prefix="/stripe", tags=["stripe"])
+# configure logger
+logger = logging.getLogger("stripe")
+logger.setLevel(logging.INFO)
 
-# configure stripe SECRET key for server‑side calls
+# load env vars
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PRICE_ID    = os.getenv("STRIPE_PRICE_ID")  # or whatever your env var is
-if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
-    raise RuntimeError("Stripe secret key or price ID not set in env")
+STRIPE_PUBLISHABLE_KEY = os.getenv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")
+STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
+WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+SUCCESS_URL = os.getenv("SUCCESS_URL")
+CANCEL_URL = os.getenv("CANCEL_URL")
+
+# sanity checks
+if not STRIPE_SECRET_KEY:
+    raise RuntimeError("Missing STRIPE_SECRET_KEY")
+if not STRIPE_PUBLISHABLE_KEY:
+    raise RuntimeError("Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")
+if not STRIPE_PRICE_ID:
+    raise RuntimeError("Missing STRIPE_PRICE_ID")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
+router = APIRouter(prefix="/stripe", tags=["stripe"])
 
-@router.get("/config")
-def stripe_config():
+
+class StripeConfigOut(BaseModel):
+    publishableKey: str
+    priceId: str
+
+
+@router.get("/config", response_model=StripeConfigOut)
+def get_stripe_config():
     """
-    Public config for client-side Stripe.js initialization.
+    Returns the publishable key and the price ID so the frontend
+    can initialize stripe.js.
     """
-    publishable = os.getenv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")
-    if not publishable:
-        raise HTTPException(500, "Publishable key not configured")
-    return {
-        "publishableKey": publishable,
-        "priceId": STRIPE_PRICE_ID,
-    }
+    logger.info("Providing Stripe config to frontend")
+    return StripeConfigOut(
+        publishableKey=STRIPE_PUBLISHABLE_KEY,
+        priceId=STRIPE_PRICE_ID,
+    )
 
 
 @router.post("/create-checkout-session")
 def create_checkout_session(
     user: User = Depends(get_current_user),
 ):
-    success_url = os.getenv("SUCCESS_URL") or ""
-    cancel_url  = os.getenv("CANCEL_URL") or ""
-    if not success_url or not cancel_url:
-        raise HTTPException(500, "Payment URLs not configured")
+    """
+    Creates a Stripe Checkout Session for a subscription.
+    """
+    if not SUCCESS_URL or not CANCEL_URL:
+        raise HTTPException(
+            status_code=500,
+            detail="SUCCESS_URL or CANCEL_URL not configured"
+        )
 
     session = stripe.checkout.Session.create(
         customer_email=user.email,
         payment_method_types=["card"],
         line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
         mode="subscription",
-        success_url=success_url,
-        cancel_url=cancel_url,
+        success_url=SUCCESS_URL,
+        cancel_url=CANCEL_URL,
     )
     return {"url": session.url}
 
@@ -59,26 +83,31 @@ async def stripe_webhook(
     request: Request,
     db: Session = Depends(get_db),
 ):
+    """
+    Receives Stripe webhook events.
+    """
+    if not WEBHOOK_SECRET:
+        raise HTTPException(500, "Missing STRIPE_WEBHOOK_SECRET")
+
     payload = await request.body()
-    sig_header = request.headers.get("stripe-signature", "")
-    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
-    if not webhook_secret:
-        raise HTTPException(500, "Webhook secret not configured")
-
+    sig = request.headers.get("stripe-signature")
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+        event = stripe.Webhook.construct_event(payload, sig, WEBHOOK_SECRET)
     except stripe.error.SignatureVerificationError:
-        raise HTTPException(400, "Invalid Stripe signature")
+        raise HTTPException(400, detail="Invalid Stripe signature")
 
+    # handle successful checkout
     if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        email = session.get("customer_email")
+        sess = event["data"]["object"]
+        email = sess.get("customer_email")
         user = db.query(User).filter(User.email == email).first()
         if user:
-            from datetime import datetime, timedelta
             user.subscribed = True
+            # mark subscription dates however you like...
+            from datetime import datetime, timedelta
             user.date_subscribed = datetime.utcnow()
             user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
             db.commit()
+            logger.info(f"User {email} marked as subscribed")
 
     return {"status": "success"}
