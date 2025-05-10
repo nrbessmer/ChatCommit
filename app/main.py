@@ -95,5 +95,5 @@ app.include_router(tag.router,       prefix="/tag",        tags=["tag"])
 app.include_router(timeline.router,  prefix="",            tags=["timeline"])  # uses its own "/timeline"
 app.include_router(merge.router,     prefix="",            tags=["merge"])     # uses its own "/merge"
 app.include_router(rollback.router,  prefix="/rollback",   tags=["rollback"])
-app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
+app.include_router(subscription.router, prefix="/subscription")
 app.include_router(stripe.router,    prefix="/stripe",     tags=["stripe"])
