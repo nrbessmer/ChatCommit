@@ -139,12 +139,12 @@ export const createSubscription = (
   data: SubscriptionPayload
 ): Promise<SubscriptionResponse> =>
   api
-    .post<SubscriptionResponse>('/subscription', data)
+    .post<SubscriptionResponse>('/subscription/', data)
     .then(res => res.data)
 
 // Fetch current subscription status
 export const fetchSubscription = (): Promise<SubscriptionResponse> =>
-  api.get<SubscriptionResponse>('/subscription').then(res => res.data)
+  api.get<SubscriptionResponse>('/subscription/').then(res => res.data)
 
 
 /* ──────────────────────────────────────────────────────────
