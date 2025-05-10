@@ -10,6 +10,8 @@ import {
 } from '@stripe/react-stripe-js'
 import { createSubscription } from '@/lib/api'
 
+// ▶︎ Log the publishable key to confirm it's being loaded correctly
+console.log('▶︎ client stripe key:', process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 function SubscriptionForm() {
@@ -31,21 +33,25 @@ function SubscriptionForm() {
     })
 
     if (error || !paymentMethod) {
-      setMessage('❌ Payment error: ' + error.message)
+      setMessage('❌ Payment error: ' + (error?.message || 'Unknown error'))
       setLoading(false)
       return
     }
 
-   try {
-  const res = await createSubscription({
-    paymentMethodId: paymentMethod.id,
-    planId: plan,
-  })
-  setMessage(`✅ Subscribed until ${new Date(res.date_subscription_expires).toLocaleDateString()}`)
-} catch (err) {
-  setMessage('❌ Subscription failed. Please try again.')
-}
-
+    try {
+      const res = await createSubscription({
+        paymentMethodId: paymentMethod.id,
+        planId: plan,
+      })
+      setMessage(
+        `✅ Subscribed until ${new Date(
+          res.date_subscription_expires
+        ).toLocaleDateString()}`
+      )
+    } catch (err: any) {
+      console.error('Subscription error:', err)
+      setMessage('❌ Subscription failed. Please try again.')
+    }
 
     setLoading(false)
   }
@@ -106,3 +112,4 @@ export default function SubscriptionPage() {
     </Elements>
   )
 }
+
