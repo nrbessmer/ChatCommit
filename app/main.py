@@ -75,7 +75,7 @@ def initialize_default_branch():  # 18
 def on_startup():  #  Fifty
     print("🚀 Ensuring DB schema...")
     Base.metadata.create_all(bind=engine)
-    register_subscription_startup(app)
+
     try:
         print("⚙️ Initializing default branch...")
         initialize_default_branch()
