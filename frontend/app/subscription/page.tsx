@@ -8,7 +8,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { api } from '@/lib/api' // use centralized baseURL
+import { api } from '@/lib/api'
 import { createSubscription } from '@/lib/api'
 
 interface StripeConfig {
@@ -25,8 +25,13 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
   const handleSubscribe = async () => {
     if (!stripe || !elements) return
     setLoading(true)
+
     const card = elements.getElement(CardElement)
-    if (!card) return
+    if (!card) {
+      setMessage('❌ Card element not found')
+      setLoading(false)
+      return
+    }
 
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
@@ -34,7 +39,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
     })
 
     if (error || !paymentMethod) {
-      setMessage('❌ Payment error: ' + error?.message)
+      setMessage('❌ Payment error: ' + (error?.message ?? 'unknown'))
       setLoading(false)
       return
     }
@@ -62,9 +67,11 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
   return (
     <div className="max-w-md mx-auto bg-gray-900 text-white p-6 mt-20 rounded-lg shadow">
       <h2 className="text-xl mb-4 text-green-400 font-bold">Subscribe</h2>
+
       <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black mb-4">
         <CardElement />
       </div>
+
       <button
         disabled={loading}
         onClick={handleSubscribe}
@@ -72,13 +79,16 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       >
         {loading ? 'Processing…' : 'Subscribe'}
       </button>
+
       {message && <p className="mt-4 text-sm text-yellow-300">{message}</p>}
     </div>
   )
 }
 
 export default function SubscriptionPage() {
-  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
+  const [stripePromise, setStripePromise] = useState<
+    Promise<Stripe | null> | null
+  >(null)
   const [priceId, setPriceId] = useState<string>('')
 
   useEffect(() => {
@@ -93,7 +103,9 @@ export default function SubscriptionPage() {
       })
   }, [])
 
-  if (!stripePromise) return <div>Loading payment form…</div>
+  if (!stripePromise) {
+    return <div>Loading payment form…</div>
+  }
 
   return (
     <Elements stripe={stripePromise}>
