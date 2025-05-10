@@ -1,9 +1,6 @@
 # app/routers/stripe.py
 
 import os
-import logging
-from datetime import datetime, timedelta
-
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -12,64 +9,48 @@ from ..database import get_db
 from ..models import User
 from ..routers.auth import get_current_user
 
-logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/stripe", tags=["stripe"])
 
-# ─── Configuration ────────────────────────────────────
-STRIPE_SECRET_KEY       = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PUBLISHABLE_KEY  = os.getenv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")
-STRIPE_PRICE_ID         = os.getenv("STRIPE_PRICE_ID")
-SUCCESS_URL             = os.getenv("SUCCESS_URL")
-CANCEL_URL              = os.getenv("CANCEL_URL")
-STRIPE_WEBHOOK_SECRET   = os.getenv("STRIPE_WEBHOOK_SECRET")
+# configure stripe SECRET key for server‑side calls
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PRICE_ID    = os.getenv("STRIPE_PRICE_ID")  # or whatever your env var is
+if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
+    raise RuntimeError("Stripe secret key or price ID not set in env")
 
-_missing = [k for k,v in {
-    "STRIPE_SECRET_KEY":       STRIPE_SECRET_KEY,
-    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": STRIPE_PUBLISHABLE_KEY,
-    "STRIPE_PRICE_ID":         STRIPE_PRICE_ID,
-    "SUCCESS_URL":             SUCCESS_URL,
-    "CANCEL_URL":              CANCEL_URL,
-    "STRIPE_WEBHOOK_SECRET":   STRIPE_WEBHOOK_SECRET,
-}.items() if not v]
-if _missing:
-    # At import time, will log but not crash the whole app
-    logger.error(f"Missing required Stripe env var(s): {', '.join(_missing)}")
+stripe.api_key = STRIPE_SECRET_KEY
 
-# initialize the Stripe library
-if STRIPE_SECRET_KEY:
-    stripe.api_key = STRIPE_SECRET_KEY
-    logger.info(f"Stripe secret key loaded (prefix={STRIPE_SECRET_KEY[:4]}**)")
-else:
-    logger.warning("Stripe secret key not set; payments won’t work.")
 
-router = APIRouter(tags=["stripe"])
+@router.get("/config")
+def stripe_config():
+    """
+    Public config for client-side Stripe.js initialization.
+    """
+    publishable = os.getenv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")
+    if not publishable:
+        raise HTTPException(500, "Publishable key not configured")
+    return {
+        "publishableKey": publishable,
+        "priceId": STRIPE_PRICE_ID,
+    }
 
 
 @router.post("/create-checkout-session")
 def create_checkout_session(
     user: User = Depends(get_current_user),
 ):
-    # ensure everything’s there
-    if not STRIPE_SECRET_KEY:
-        raise HTTPException(500, "Server misconfiguration: missing STRIPE_SECRET_KEY")
-    if not STRIPE_PRICE_ID:
-        raise HTTPException(500, "Server misconfiguration: missing STRIPE_PRICE_ID")
-    if not SUCCESS_URL or not CANCEL_URL:
-        raise HTTPException(500, "Server misconfiguration: missing SUCCESS_URL/CANCEL_URL")
+    success_url = os.getenv("SUCCESS_URL") or ""
+    cancel_url  = os.getenv("CANCEL_URL") or ""
+    if not success_url or not cancel_url:
+        raise HTTPException(500, "Payment URLs not configured")
 
-    # build the session
-    try:
-        session = stripe.checkout.Session.create(
-            customer_email=user.email,
-            payment_method_types=["card"],
-            line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
-            mode="subscription",
-            success_url=SUCCESS_URL,
-            cancel_url=CANCEL_URL,
-        )
-    except stripe.error.StripeError as e:
-        logger.error(f"Stripe API error when creating checkout session: {e.user_message or str(e)}")
-        raise HTTPException(502, f"Payment gateway error: {e.user_message or 'please try again'}")
-
+    session = stripe.checkout.Session.create(
+        customer_email=user.email,
+        payment_method_types=["card"],
+        line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
+        mode="subscription",
+        success_url=success_url,
+        cancel_url=cancel_url,
+    )
     return {"url": session.url}
 
 
@@ -78,34 +59,26 @@ async def stripe_webhook(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    if not STRIPE_WEBHOOK_SECRET:
-        raise HTTPException(500, "Server misconfiguration: missing STRIPE_WEBHOOK_SECRET")
-
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    if not webhook_secret:
+        raise HTTPException(500, "Webhook secret not configured")
 
     try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except stripe.error.SignatureVerificationError:
-        logger.error("Invalid Stripe webhook signature")
         raise HTTPException(400, "Invalid Stripe signature")
-    except Exception as e:
-        logger.error(f"Error parsing Stripe webhook: {e}")
-        raise HTTPException(400, "Invalid payload")
 
-    # handle checkout completion
     if event["type"] == "checkout.session.completed":
-        session_obj = event["data"]["object"]
-        customer_email = session_obj.get("customer_email")
-        logger.info(f"Webhook: checkout.session.completed for {customer_email}")
-
-        user = db.query(User).filter(User.email == customer_email).first()
+        session = event["data"]["object"]
+        email = session.get("customer_email")
+        user = db.query(User).filter(User.email == email).first()
         if user:
+            from datetime import datetime, timedelta
             user.subscribed = True
-            user.date_subscribed = datetime.utcfromtimestamp(session_obj["created"])
+            user.date_subscribed = datetime.utcnow()
             user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
             db.commit()
-        else:
-            logger.warning(f"No user found for email {customer_email} on webhook")
 
     return {"status": "success"}
