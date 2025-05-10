@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { loadStripe, Stripe } from '@stripe/stripe-js'
 import {
   Elements,
@@ -10,8 +11,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { api } from '@/lib/api'             // your Axios instance
-import { createSubscription } from '@/lib/api'
+import { api, fetchSubscription, createSubscription } from '@/lib/api'
 
 interface StripeConfig {
   publishableKey: string
@@ -27,8 +27,14 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
   const handleSubscribe = async () => {
     if (!stripe || !elements) return
     setLoading(true)
+
+    // grab the card-number element
     const card = elements.getElement(CardNumberElement)
-    if (!card) return
+    if (!card) {
+      setMessage('❌ Card element not found')
+      setLoading(false)
+      return
+    }
 
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
@@ -68,9 +74,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       <div className="space-y-4 mb-4">
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black">
           <label className="block mb-1 text-gray-700">Card number</label>
-          <CardNumberElement
-            options={{ style: { base: { fontSize: '16px' } } }}
-          />
+          <CardNumberElement options={{ style: { base: { fontSize: '16px' } } }} />
         </div>
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black flex gap-4">
           <div className="flex-1">
@@ -106,23 +110,57 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
 }
 
 export default function SubscriptionPage() {
+  const router = useRouter()
   const [stripePromise, setStripePromise] =
     useState<Promise<Stripe | null> | null>(null)
   const [priceId, setPriceId] = useState<string>('')
+  const [checking, setChecking] = useState(true)
+  const [already, setAlready] = useState(false)
 
   useEffect(() => {
-    api
-      .get<StripeConfig>('/stripe/config')
-      .then((res) => {
-        setPriceId(res.data.priceId)
-        setStripePromise(loadStripe(res.data.publishableKey))
-      })
-      .catch((err) => {
-        console.error('Failed to load Stripe config:', err)
-      })
-  }, [])
+    // 1) must be logged in
+    const token = typeof window !== 'undefined'
+      ? localStorage.getItem('auth_token')
+      : null
+    if (!token) {
+      router.push('/login')
+      return
+    }
 
-  if (!stripePromise) return <div>Loading payment form…</div>
+    // 2) check if already subscribed
+    fetchSubscription()
+      .then(() => setAlready(true))
+      .catch(() => {
+        // 404 or 400 means no active subscription
+      })
+      .finally(() => {
+        // 3) load Stripe config
+        api
+          .get<StripeConfig>('/stripe/config')
+          .then(res => {
+            setPriceId(res.data.priceId)
+            setStripePromise(loadStripe(res.data.publishableKey))
+          })
+          .catch(err => console.error('Stripe config load failed', err))
+          .finally(() => setChecking(false))
+      })
+  }, [router])
+
+  if (checking) {
+    return <div className="mt-20 text-center">Loading…</div>
+  }
+
+  if (already) {
+    return (
+      <div className="mt-20 text-center text-green-600">
+        You already have an active subscription.
+      </div>
+    )
+  }
+
+  if (!stripePromise) {
+    return <div className="mt-20 text-center">Loading payment form…</div>
+  }
 
   return (
     <Elements stripe={stripePromise}>
