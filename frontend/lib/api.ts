@@ -17,7 +17,7 @@ export const api = axios.create({ baseURL: API_BASE })
 
 // ──────────────────────────────────────────────────────────
 // Inject JWT from localStorage into Authorization header
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(config => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('auth_token')
     if (token) {
@@ -50,7 +50,6 @@ export interface Tag {
   name: string
   commit_id: number
 }
-
 
 /* ──────────────────────────────────────────────────────────
    User / Auth
@@ -88,9 +87,7 @@ export interface UserProfile {
 export const registerUser = (
   data: UserRegisterPayload
 ): Promise<UserProfile> =>
-  api
-    .post<UserProfile>('/auth/users/register', data)
-    .then(res => res.data)
+  api.post<UserProfile>('/auth/users/register', data).then(res => res.data)
 
 // Activate account
 export const activateUser = (
@@ -109,28 +106,21 @@ export const loginWithForm = (
   api
     .post<AuthResponse>('/auth/users/token', undefined, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      params: { username, password }
+      params: { username, password },
     })
     .then(res => res.data)
 
 // JSON login shim
-export const loginUser = (
-  data: UserLoginPayload
-): Promise<AuthResponse> =>
-  api
-    .post<AuthResponse>('/auth/users/login', data)
-    .then(res => res.data)
+export const loginUser = (data: UserLoginPayload): Promise<AuthResponse> =>
+  api.post<AuthResponse>('/auth/users/login', data).then(res => res.data)
 
 // Fetch current user's profile (requires Authorization header)
 export const fetchUserProfile = (): Promise<UserProfile> =>
-  api
-    .get<UserProfile>('/users/me')
-    .then(res => res.data)
+  api.get<UserProfile>('/users/me').then(res => res.data)
 
 // Request extension install instructions
 export const sendExtensionInstructions = (): Promise<void> =>
   api.post<void>('/users/extension-instructions').then(res => res.data)
-
 
 /* ──────────────────────────────────────────────────────────
    Subscription
@@ -149,15 +139,22 @@ export interface SubscriptionResponse {
 // Create or update subscription
 export const createSubscription = (
   data: SubscriptionPayload
-): Promise<SubscriptionResponse> =>
-  api
-    .post<SubscriptionResponse>('/subscription/', data)
+): Promise<SubscriptionResponse> => {
+  const token =
+    typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+
+  return api
+    .post<SubscriptionResponse>(
+      '/subscription/',
+      data,
+      token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
+    )
     .then(res => res.data)
+}
 
 // Fetch current subscription status
 export const fetchSubscription = (): Promise<SubscriptionResponse> =>
   api.get<SubscriptionResponse>('/subscription/').then(res => res.data)
-
 
 /* ──────────────────────────────────────────────────────────
    Branches
@@ -174,7 +171,6 @@ export const createBranch = (
 ): Promise<Branch> =>
   api.post<Branch>('/branch/', { name, base_commit_id: baseId }).then(res => res.data)
 
-
 /* ──────────────────────────────────────────────────────────
    Commits
 ────────────────────────────────────────────────────────── */
@@ -188,9 +184,7 @@ export const createCommit = (payload: {
   commit_message: string
   conversation_context: any
   branch_id?: number
-}): Promise<Commit> =>
-  api.post<Commit>('/commit/', payload).then(res => res.data)
-
+}): Promise<Commit> => api.post<Commit>('/commit/', payload).then(res => res.data)
 
 /* ──────────────────────────────────────────────────────────
    Timeline
@@ -199,17 +193,14 @@ export const createCommit = (payload: {
 export const fetchTimeline = (params?: {
   branch_id?: number
   tag?: string
-  start_date?: string  // ISO‑8601
-  end_date?: string    // ISO‑8601
-}): Promise<Commit[]> =>
-  api.get<Commit[]>('/timeline/', { params }).then(res => res.data)
-
+  start_date?: string // ISO‑8601
+  end_date?: string // ISO‑8601
+}): Promise<Commit[]> => api.get<Commit[]>('/timeline/', { params }).then(res => res.data)
 
 /* ──────────────────────────────────────────────────────────
    Tags
 ────────────────────────────────────────────────────────── */
-export const fetchTags = (): Promise<Tag[]> =>
-  api.get<Tag[]>('/tag/').then(res => res.data)
+export const fetchTags = (): Promise<Tag[]> => api.get<Tag[]>('/tag/').then(res => res.data)
 
 export const fetchCommitTags = (commitId: number): Promise<Tag[]> =>
   api.get<Tag[]>(`/tag/commit/${commitId}`).then(res => res.data)
@@ -219,7 +210,6 @@ export const fetchBranchTags = (branchId: number): Promise<Tag[]> =>
 
 export const createTag = (name: string, commitId: number): Promise<Tag> =>
   api.post<Tag>('/tag/', { name, commit_id: commitId }).then(res => res.data)
-
 
 /* ──────────────────────────────────────────────────────────
    Merge & Rollback
