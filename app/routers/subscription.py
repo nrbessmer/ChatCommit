@@ -27,7 +27,7 @@ if not STRIPE_PRICE_ID:
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-router = APIRouter(prefix="/subscription", tags=["subscription"])
+router = APIRouter(tags=["subscription"])
 
 
 class SubscriptionRequest(BaseModel):
