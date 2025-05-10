@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react'
 import { loadStripe, Stripe } from '@stripe/stripe-js'
 import {
   Elements,
-  CardElement,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { api } from '@/lib/api'
+import { api } from '@/lib/api'             // your Axios instance
 import { createSubscription } from '@/lib/api'
 
 interface StripeConfig {
@@ -25,13 +27,8 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
   const handleSubscribe = async () => {
     if (!stripe || !elements) return
     setLoading(true)
-
-    const card = elements.getElement(CardElement)
-    if (!card) {
-      setMessage('❌ Card element not found')
-      setLoading(false)
-      return
-    }
+    const card = elements.getElement(CardNumberElement)
+    if (!card) return
 
     const { error, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
@@ -68,8 +65,27 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
     <div className="max-w-md mx-auto bg-gray-900 text-white p-6 mt-20 rounded-lg shadow">
       <h2 className="text-xl mb-4 text-green-400 font-bold">Subscribe</h2>
 
-      <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black mb-4">
-        <CardElement />
+      <div className="space-y-4 mb-4">
+        <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black">
+          <label className="block mb-1 text-gray-700">Card number</label>
+          <CardNumberElement
+            options={{ style: { base: { fontSize: '16px' } } }}
+          />
+        </div>
+        <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black flex gap-4">
+          <div className="flex-1">
+            <label className="block mb-1 text-gray-700">Expiry</label>
+            <CardExpiryElement
+              options={{ style: { base: { fontSize: '16px' } } }}
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block mb-1 text-gray-700">CVC</label>
+            <CardCvcElement
+              options={{ style: { base: { fontSize: '16px' } } }}
+            />
+          </div>
+        </div>
       </div>
 
       <button
@@ -80,32 +96,33 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
         {loading ? 'Processing…' : 'Subscribe'}
       </button>
 
-      {message && <p className="mt-4 text-sm text-yellow-300">{message}</p>}
+      {message && (
+        <p className="mt-4 text-sm text-yellow-300 whitespace-pre-wrap">
+          {message}
+        </p>
+      )}
     </div>
   )
 }
 
 export default function SubscriptionPage() {
-  const [stripePromise, setStripePromise] = useState<
-    Promise<Stripe | null> | null
-  >(null)
+  const [stripePromise, setStripePromise] =
+    useState<Promise<Stripe | null> | null>(null)
   const [priceId, setPriceId] = useState<string>('')
 
   useEffect(() => {
     api
       .get<StripeConfig>('/stripe/config')
-      .then(({ data }) => {
-        setPriceId(data.priceId)
-        setStripePromise(loadStripe(data.publishableKey))
+      .then((res) => {
+        setPriceId(res.data.priceId)
+        setStripePromise(loadStripe(res.data.publishableKey))
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Failed to load Stripe config:', err)
       })
   }, [])
 
-  if (!stripePromise) {
-    return <div>Loading payment form…</div>
-  }
+  if (!stripePromise) return <div>Loading payment form…</div>
 
   return (
     <Elements stripe={stripePromise}>
