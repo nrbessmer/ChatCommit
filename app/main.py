@@ -6,6 +6,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import hashlib
+import os
+import logging
 
 from .database import SessionLocal, engine, Base
 from .models import Commit, Branch
@@ -21,6 +23,9 @@ from app.routers import (
     subscription,
     stripe,
 )
+
+# set up logging
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI(title="ChatCommit API", version="0.1.0")  # 1
 
@@ -72,7 +77,13 @@ def initialize_default_branch():  # 18
     db.close()
 
 @app.on_event("startup")
-def on_startup():  #  Fifty
+def on_startup():  # Fifty
+    # log environment and stripe config
+    stripe_key = os.getenv("STRIPE_SECRET_KEY")
+    price_id   = os.getenv("STRIPE_PRICE_ID")
+    logger.info(f"🔑 STRIPE_SECRET_KEY = {stripe_key[:8] + '…' if stripe_key else None}")
+    logger.info(f"🔖 STRIPE_PRICE_ID   = {price_id}")
+
     print("🚀 Ensuring DB schema...")
     Base.metadata.create_all(bind=engine)
 
