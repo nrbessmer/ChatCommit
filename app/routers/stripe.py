@@ -11,19 +11,18 @@ from ..database import get_db
 from ..models import User
 from ..routers.auth import get_current_user
 
-# configure logger
+# ─── Logging ─────────────────────────────────────────────────────
 logger = logging.getLogger("stripe")
 logger.setLevel(logging.INFO)
 
-# load env vars
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PUBLISHABLE_KEY = os.getenv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")
-STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
-WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
-SUCCESS_URL = os.getenv("SUCCESS_URL")
-CANCEL_URL = os.getenv("CANCEL_URL")
+# ─── Load & validate env vars ──────────────────────────────────
+STRIPE_SECRET_KEY        = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLISHABLE_KEY   = os.getenv("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY")
+STRIPE_PRICE_ID          = os.getenv("STRIPE_PRICE_ID")
+STRIPE_WEBHOOK_SECRET    = os.getenv("STRIPE_WEBHOOK_SECRET")
+SUCCESS_URL              = os.getenv("SUCCESS_URL")
+CANCEL_URL               = os.getenv("CANCEL_URL")
 
-# sanity checks
 if not STRIPE_SECRET_KEY:
     raise RuntimeError("Missing STRIPE_SECRET_KEY")
 if not STRIPE_PUBLISHABLE_KEY:
@@ -33,40 +32,32 @@ if not STRIPE_PRICE_ID:
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-router = APIRouter(prefix="/stripe", tags=["stripe"])
-
+# ─── Router & Schemas ─────────────────────────────────────────
+router = APIRouter()
 
 class StripeConfigOut(BaseModel):
     publishableKey: str
     priceId: str
 
-
+# ─── Public config endpoint ────────────────────────────────────
 @router.get("/config", response_model=StripeConfigOut)
 def get_stripe_config():
     """
-    Returns the publishable key and the price ID so the frontend
-    can initialize stripe.js.
+    Return the Stripe publishable key & price ID for the frontend.
     """
-    logger.info("Providing Stripe config to frontend")
+    logger.info("→ /stripe/config called")
     return StripeConfigOut(
         publishableKey=STRIPE_PUBLISHABLE_KEY,
         priceId=STRIPE_PRICE_ID,
     )
 
-
+# ─── Checkout‐session endpoint ─────────────────────────────────
 @router.post("/create-checkout-session")
 def create_checkout_session(
     user: User = Depends(get_current_user),
 ):
-    """
-    Creates a Stripe Checkout Session for a subscription.
-    """
     if not SUCCESS_URL or not CANCEL_URL:
-        raise HTTPException(
-            status_code=500,
-            detail="SUCCESS_URL or CANCEL_URL not configured"
-        )
-
+        raise HTTPException(500, "Missing SUCCESS_URL or CANCEL_URL")
     session = stripe.checkout.Session.create(
         customer_email=user.email,
         payment_method_types=["card"],
@@ -77,37 +68,33 @@ def create_checkout_session(
     )
     return {"url": session.url}
 
-
+# ─── Webhook endpoint ──────────────────────────────────────────
 @router.post("/webhook")
 async def stripe_webhook(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """
-    Receives Stripe webhook events.
-    """
-    if not WEBHOOK_SECRET:
+    if not STRIPE_WEBHOOK_SECRET:
         raise HTTPException(500, "Missing STRIPE_WEBHOOK_SECRET")
-
     payload = await request.body()
-    sig = request.headers.get("stripe-signature")
+    sig_header = request.headers.get("stripe-signature")
     try:
-        event = stripe.Webhook.construct_event(payload, sig, WEBHOOK_SECRET)
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
     except stripe.error.SignatureVerificationError:
-        raise HTTPException(400, detail="Invalid Stripe signature")
+        raise HTTPException(400, "Invalid Stripe signature")
 
-    # handle successful checkout
     if event["type"] == "checkout.session.completed":
         sess = event["data"]["object"]
         email = sess.get("customer_email")
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter_by(email=email).first()
         if user:
-            user.subscribed = True
-            # mark subscription dates however you like...
             from datetime import datetime, timedelta
+            user.subscribed = True
             user.date_subscribed = datetime.utcnow()
             user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
             db.commit()
-            logger.info(f"User {email} marked as subscribed")
+            logger.info(f"User {email} marked subscribed until {user.date_subscription_expires}")
 
     return {"status": "success"}
