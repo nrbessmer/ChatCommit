@@ -2,54 +2,46 @@
 
 import os
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import stripe
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 
 from ..database import get_db
 from ..models import User
-from app.routers.auth import get_current_user  # your existing auth dependency
+from app.routers.auth import create_access_token  # your auth helper
 
-# ─── Configure logging ──────────────────────────────────────────
+# logging
 logger = logging.getLogger("subscription")
 logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(name)s: %(message)s"))
-logger.addHandler(handler)
 
-# ─── Load & log your env vars ──────────────────────────────────
+# load & validate env
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_PRICE_ID   = os.getenv("STRIPE_PRICE_ID")
 
-# Log the values we actually have (first/last few chars only for safety)
-logger.info(f"Loaded STRIPE_SECRET_KEY={STRIPE_SECRET_KEY[:8] + '…' if STRIPE_SECRET_KEY else None}")
-logger.info(f"Loaded STRIPE_PRICE_ID={STRIPE_PRICE_ID}")
-
-if not STRIPE_SECRET_KEY:
-    logger.error("Missing STRIPE_SECRET_KEY env var")
-    raise RuntimeError("Missing STRIPE_SECRET_KEY env var")
-if not STRIPE_PRICE_ID:
-    logger.error("Missing STRIPE_PRICE_ID env var")
-    raise RuntimeError("Missing STRIPE_PRICE_ID env var")
+if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
+    raise RuntimeError("Missing Stripe configuration in env")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-# ─── Router setup ─────────────────────────────────────────────
-router = APIRouter(tags=["subscription"]) 
+router = APIRouter(tags=["subscription"])
 
 
 class SubscriptionRequest(BaseModel):
+    email: EmailStr
+    password: str
     paymentMethodId: str
-    planId: str  # still accept planId from client for now
 
 
 class SubscriptionResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
     subscribed: bool
-    date_subscribed: str
-    date_subscription_expires: str
+    date_subscribed: datetime
+    date_subscription_expires: datetime
 
 
 @router.post(
@@ -57,89 +49,64 @@ class SubscriptionResponse(BaseModel):
     response_model=SubscriptionResponse,
     status_code=status.HTTP_200_OK,
 )
-def create_or_update_subscription(
+def subscribe_and_activate(
     payload: SubscriptionRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
 ):
-    logger.info(f"→ Starting subscription for user {current_user.email}")
+    logger.info(f"Subscription request for {payload.email}")
 
-    try:
-        # 1) Ensure Stripe Customer exists
-        if not current_user.stripe_customer_id:
-            logger.info("   • Creating new Stripe customer")
-            customer = stripe.Customer.create(
-                email=current_user.email,
-                name=current_user.full_name,
-            )
-            current_user.stripe_customer_id = customer.id
-            db.commit()
-        else:
-            logger.info(f"   • Retrieving Stripe customer {current_user.stripe_customer_id}")
-            customer = stripe.Customer.retrieve(current_user.stripe_customer_id)
+    # 1) authenticate
+    user = db.query(User).filter(User.email == payload.email).first()
+    pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    if not user or not pwd_ctx.verify(payload.password, user.password_hash):
+        logger.warning("Invalid credentials for subscription")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-        # 2) Attach payment method & set default
-        logger.info(f"   • Attaching payment method {payload.paymentMethodId}")
-        stripe.PaymentMethod.attach(payload.paymentMethodId, customer=customer.id)
-        stripe.Customer.modify(customer.id, invoice_settings={"default_payment_method": payload.paymentMethodId})
-
-        # 3) Create subscription
-        logger.info(f"   • Creating subscription with price {payload.planId}")
-        subscription = stripe.Subscription.create(
-            customer=customer.id,
-            items=[{"price": payload.planId}],
-            expand=["latest_invoice.payment_intent"],
+    # 2) Stripe customer
+    if not user.stripe_customer_id:
+        logger.info("Creating Stripe customer")
+        customer = stripe.Customer.create(
+            email=user.email, name=user.full_name
         )
-
-        # 4) Persist in DB
-        now = datetime.utcfromtimestamp(subscription.created)
-        expires = datetime.utcfromtimestamp(subscription.current_period_end)
-
-        current_user.subscribed = True
-        current_user.date_subscribed = now
-        current_user.date_subscription_expires = expires
+        user.stripe_customer_id = customer.id
         db.commit()
+    else:
+        customer = stripe.Customer.retrieve(user.stripe_customer_id)
 
-        logger.info("✅ Subscription recorded in DB")
-        return SubscriptionResponse(
-            subscribed=True,
-            date_subscribed=now.isoformat(),
-            date_subscription_expires=expires.isoformat(),
-        )
+    # 3) attach payment method
+    stripe.PaymentMethod.attach(
+        payload.paymentMethodId,
+        customer=customer.id,
+    )
+    stripe.Customer.modify(
+        customer.id,
+        invoice_settings={"default_payment_method": payload.paymentMethodId},
+    )
 
-    except stripe.error.StripeError as e:
-        logger.error(f"StripeError: {e.user_message or e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=e.user_message or "Stripe error during subscription",
-        )
-    except Exception as e:
-        logger.exception("Unexpected error in subscription endpoint")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during subscription",
-        )
+    # 4) create subscription
+    sub = stripe.Subscription.create(
+        customer=customer.id,
+        items=[{"price": STRIPE_PRICE_ID}],
+        expand=["latest_invoice.payment_intent"],
+    )
+    now = datetime.utcfromtimestamp(sub.created)
+    expires = datetime.utcfromtimestamp(sub.current_period_end)
 
+    # 5) persist to DB & “activate”
+    user.subscribed = True
+    user.date_subscribed = now
+    user.date_subscription_expires = expires
+    # clear any activation‐token field if you used one
+    user.token = ""
+    db.commit()
 
-@router.get(
-    "/",
-    response_model=SubscriptionResponse,
-    status_code=status.HTTP_200_OK,
-)
-def fetch_subscription_status(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    logger.info(f"→ Fetching subscription status for {current_user.email}")
-    if not current_user.subscribed:
-        logger.info("   • No active subscription")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active subscription found",
-        )
+    # 6) issue a fresh JWT
+    token = create_access_token({"sub": str(user.id)})
 
+    logger.info(f"User {user.email} subscribed & activated")
     return SubscriptionResponse(
+        access_token=token,
         subscribed=True,
-        date_subscribed=current_user.date_subscribed.isoformat(),
-        date_subscription_expires=current_user.date_subscription_expires.isoformat(),
+        date_subscribed=now,
+        date_subscription_expires=expires,
     )
