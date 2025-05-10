@@ -15,6 +15,18 @@ export const API_BASE =
 
 export const api = axios.create({ baseURL: API_BASE })
 
+// ──────────────────────────────────────────────────────────
+// Inject JWT from localStorage into Authorization header
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers = config.headers ?? {}
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return config
+})
 
 /* ──────────────────────────────────────────────────────────
    Shared Types
