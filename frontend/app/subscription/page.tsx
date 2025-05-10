@@ -8,7 +8,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import axios from 'axios'
+import { api } from '@/lib/api' // use centralized baseURL
 import { createSubscription } from '@/lib/api'
 
 interface StripeConfig {
@@ -44,9 +44,16 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
         paymentMethodId: paymentMethod.id,
         planId: priceId,
       })
-      setMessage(`✅ Subscribed until ${new Date(res.date_subscription_expires).toLocaleDateString()}`)
+      setMessage(
+        `✅ Subscribed until ${new Date(
+          res.date_subscription_expires
+        ).toLocaleDateString()}`
+      )
     } catch (e: any) {
-      setMessage('❌ ' + (e.response?.data?.detail || e.message || 'Subscription failed'))
+      setMessage(
+        '❌ ' +
+          (e.response?.data?.detail || e.message || 'Subscription failed')
+      )
     } finally {
       setLoading(false)
     }
@@ -75,10 +82,15 @@ export default function SubscriptionPage() {
   const [priceId, setPriceId] = useState<string>('')
 
   useEffect(() => {
-    axios.get<StripeConfig>('/stripe/config').then(({ data }) => {
-      setPriceId(data.priceId)
-      setStripePromise(loadStripe(data.publishableKey))
-    })
+    api
+      .get<StripeConfig>('/stripe/config')
+      .then(({ data }) => {
+        setPriceId(data.priceId)
+        setStripePromise(loadStripe(data.publishableKey))
+      })
+      .catch(err => {
+        console.error('Failed to load Stripe config:', err)
+      })
   }, [])
 
   if (!stripePromise) return <div>Loading payment form…</div>
