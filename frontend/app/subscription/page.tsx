@@ -3,7 +3,7 @@
 import React from 'react'
 import { useEffect, useState } from 'react'
 import CommitCard from '@/components/CommitCard'
-import { fetchBranchCommits, Commit as ApiCommit } from '@/lib/api'
+import { fetchBranchCommits, ApiCommit } from '@/lib/api'
 
 type Commit = ApiCommit
 
