@@ -84,9 +84,6 @@ async def create_subscription(
 ):
     """Create a new subscription"""
     try:
-        # Log incoming request
-        logger.info(f"Subscription request received for email: {payload.email}")
-
         # Find user
         user = db.query(User).filter(User.email == payload.email).first()
         if not user:
@@ -96,50 +93,34 @@ async def create_subscription(
                 detail="User not found"
             )
 
-        # Check if already subscribed
-        if user.subscribed and user.date_subscription_expires and user.date_subscription_expires > datetime.utcnow():
-            logger.info(f"User {user.email} already has active subscription")
-            return SubscriptionResponse(
-                subscribed=True,
-                date_subscribed=user.date_subscribed,
-                date_subscription_expires=user.date_subscription_expires,
-                requires_action=False
-            )
+        logger.info(f"Processing subscription for {user.email}")
 
-        # Create/get Stripe customer
+        # Create/get customer
         try:
             if not user.stripe_customer_id:
-                logger.info(f"Creating new Stripe customer for {user.email}")
                 customer = stripe.Customer.create(
                     email=user.email,
                     name=user.full_name,
-                    metadata={
-                        'user_id': str(user.id)
-                    }
                 )
                 user.stripe_customer_id = customer.id
                 db.commit()
                 logger.info(f"Created Stripe customer: {customer.id}")
             else:
-                logger.info(f"Using existing Stripe customer: {user.stripe_customer_id}")
                 customer = stripe.Customer.retrieve(user.stripe_customer_id)
+                logger.info(f"Using existing customer: {customer.id}")
 
         except stripe.error.StripeError as e:
-            logger.error(f"Stripe customer error: {str(e)}")
+            logger.error(f"Customer error: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Customer creation failed: {str(e)}"
+                detail=f"Customer error: {str(e)}"
             )
 
         # Attach payment method
         try:
-            logger.info("Validating payment method")
-            # First verify the payment method exists
-            payment_method = stripe.PaymentMethod.retrieve(payload.paymentMethodId)
-            
-            logger.info("Attaching payment method to customer")
+            logger.info("Attaching payment method")
             payment_method = stripe.PaymentMethod.attach(
-                payment_method.id,
+                payload.paymentMethodId,
                 customer=customer.id,
             )
             
@@ -155,36 +136,41 @@ async def create_subscription(
             logger.error(f"Payment method error: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Payment setup failed: {str(e)}"
+                detail=f"Payment error: {str(e)}"
             )
 
         # Create subscription
         try:
             logger.info("Creating subscription")
+            
+            # Create subscription without expand
             subscription = stripe.Subscription.create(
                 customer=customer.id,
                 items=[{"price": payload.planId}],
                 payment_behavior='default_incomplete',
                 payment_settings={'save_default_payment_method': 'on_subscription'},
-                expand=['latest_invoice.payment_intent'],
-                metadata={
-                    'user_id': str(user.id)
-                }
+                metadata={'user_id': str(user.id)}
             )
             
-            logger.info(f"Subscription created: {subscription.id}")
+            logger.info(f"Created subscription: {subscription.id}")
 
-            # Check if additional authentication is needed
-            if hasattr(subscription.latest_invoice, 'payment_intent') and \
-               subscription.latest_invoice.payment_intent.status == 'requires_action':
-                logger.info("Additional authentication required")
-                return SubscriptionResponse(
-                    subscribed=False,
-                    date_subscribed=None,
-                    date_subscription_expires=None,
-                    requires_action=True,
-                    payment_intent_client_secret=subscription.latest_invoice.payment_intent.client_secret
+            # Get invoice if needed
+            if subscription.latest_invoice:
+                invoice = stripe.Invoice.retrieve(
+                    subscription.latest_invoice,
+                    expand=['payment_intent']
                 )
+                
+                if (invoice.payment_intent and
+                    invoice.payment_intent.status == 'requires_action'):
+                    logger.info("Additional authentication required")
+                    return SubscriptionResponse(
+                        subscribed=False,
+                        date_subscribed=None,
+                        date_subscription_expires=None,
+                        requires_action=True,
+                        payment_intent_client_secret=invoice.payment_intent.client_secret
+                    )
 
             # Set subscription dates
             now = datetime.utcnow()
@@ -194,7 +180,7 @@ async def create_subscription(
             user.subscribed = True
             user.date_subscribed = now
             user.date_subscription_expires = expires
-            user.activated = True  # Mark user as activated
+            user.activated = True
             db.commit()
 
             logger.info(f"Subscription activated for {user.email} until {expires}")
@@ -208,24 +194,21 @@ async def create_subscription(
             )
 
         except stripe.error.StripeError as e:
-            logger.error(f"Subscription creation error: {str(e)}")
+            logger.error(f"Subscription error: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Subscription creation failed: {str(e)}"
+                detail=f"Subscription error: {str(e)}"
             )
 
     except Exception as e:
-        logger.error(f"Unexpected error in subscription creation: {str(e)}")
+        logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred"
+            detail=str(e)
         )
 
 @router.post("/webhook")
-async def handle_stripe_webhook(
-    request: Request,
-    db: Session = Depends(get_db)
-):
+async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db)):
     """Handle Stripe webhook events"""
     try:
         event = stripe.Webhook.construct_event(
