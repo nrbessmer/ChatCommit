@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>API Test</title>
+</head>
+<body>
+  <h1>API Test</h1>
+  <button id="test-btn">Test API Call</button>
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('test-btn').addEventListener('click', async () => {
+      const result = document.getElementById('result');
+      result.textContent = 'Testing...';
+      
+      try {
+        const res = await fetch('https://chatcommit.fly.dev/auth/users/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            email: 'your-test-email@example.com', 
+            password: 'your-test-password' 
+          })
+        });
+        
+        const status = res.status;
+        const text = await res.text();
+        result.textContent = `Status: ${status}, Response: ${text}`;
+      } catch (error) {
+        result.textContent = `Error: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>
