@@ -143,52 +143,53 @@ async def create_subscription(
         try:
             logger.info("Creating subscription")
             
-            # Create subscription without expand
+            # Create subscription with expand for latest_invoice.payment_intent
             subscription = stripe.Subscription.create(
                 customer=customer.id,
                 items=[{"price": payload.planId}],
                 payment_behavior='default_incomplete',
                 payment_settings={'save_default_payment_method': 'on_subscription'},
+                expand=['latest_invoice.payment_intent'],  # Expanded properly here
                 metadata={'user_id': str(user.id)}
             )
             
             logger.info(f"Created subscription: {subscription.id}")
 
-            # Get invoice if needed
-            if subscription.latest_invoice:
-                invoice = stripe.Invoice.retrieve(
-                    subscription.latest_invoice,
-                    expand=['payment_intent']
-                )
+            # Check for payment intent directly from expanded field
+            if (hasattr(subscription, 'latest_invoice') and
+                hasattr(subscription.latest_invoice, 'payment_intent') and
+                subscription.latest_invoice.payment_intent and
+                subscription.latest_invoice.payment_intent.status == 'requires_action'):
                 
-                if (invoice.payment_intent and
-                    invoice.payment_intent.status == 'requires_action'):
-                    logger.info("Additional authentication required")
-                    return SubscriptionResponse(
-                        subscribed=False,
-                        date_subscribed=None,
-                        date_subscription_expires=None,
-                        requires_action=True,
-                        payment_intent_client_secret=invoice.payment_intent.client_secret
-                    )
+                logger.info("Additional authentication required")
+                return SubscriptionResponse(
+                    subscribed=False,
+                    date_subscribed=None,
+                    date_subscription_expires=None,
+                    requires_action=True,
+                    payment_intent_client_secret=subscription.latest_invoice.payment_intent.client_secret
+                )
 
             # Set subscription dates
             now = datetime.utcnow()
             expires = datetime.utcfromtimestamp(subscription.current_period_end)
 
-            # Update user record
-            user.subscribed = True
-            user.date_subscribed = now
-            user.date_subscription_expires = expires
+            # Update user record - only mark as subscribed if status is active
+            is_active = subscription.status == 'active'
+            user.subscribed = is_active
+            user.date_subscribed = now if is_active else None
+            user.date_subscription_expires = expires if is_active else None
             user.activated = True
             db.commit()
 
-            logger.info(f"Subscription activated for {user.email} until {expires}")
+            logger.info(f"Subscription status for {user.email}: {subscription.status}")
+            if is_active:
+                logger.info(f"Subscription activated until {expires}")
 
             return SubscriptionResponse(
-                subscribed=True,
-                date_subscribed=now,
-                date_subscription_expires=expires,
+                subscribed=is_active,
+                date_subscribed=now if is_active else None,
+                date_subscription_expires=expires if is_active else None,
                 requires_action=False,
                 payment_intent_client_secret=None
             )

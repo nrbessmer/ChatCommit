@@ -18,6 +18,15 @@ interface StripeConfig {
   priceId: string
 }
 
+// Extend the SubscriptionResponse type to match what your backend might return
+interface ExtendedSubscriptionResponse {
+  subscribed: boolean
+  date_subscribed: string
+  date_subscription_expires: string
+  payment_intent_client_secret?: string
+  requires_action?: boolean
+}
+
 function SubscriptionForm({ priceId }: { priceId: string }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -57,18 +66,31 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       }
 
       setMessage('Setting up subscription...')
+      
+      // Cast to our extended type to handle potential additional fields
       const response = await createSubscription({
         paymentMethodId: paymentMethod.id,
         planId: priceId
-      })
+      }) as unknown as ExtendedSubscriptionResponse
 
-      setMessage(`✅ Subscription activated! Valid until ${new Date(response.date_subscription_expires).toLocaleDateString()}`)
-      setTimeout(() => router.push('/dashboard'), 2000)
+      // If subscription is successful
+      if (response.subscribed) {
+        setMessage(`✅ Subscription activated! Valid until ${new Date(response.date_subscription_expires).toLocaleDateString()}`)
+        setTimeout(() => router.push('/dashboard'), 2000)
+      } else {
+        setMessage('❌ Subscription not activated. Please try again.')
+      }
 
     } catch (e: any) {
       console.error('Subscription error:', e)
-      const errorMessage = e.response?.data?.detail || e.message || 'Subscription failed'
-      setMessage(`❌ ${errorMessage}`)
+      
+      // Handle the specific payment_intent expansion error
+      if (e.response?.data?.detail?.includes("payment_intent")) {
+        setMessage("❌ There was an error processing your payment. Please try again later.")
+      } else {
+        const errorMessage = e.response?.data?.detail || e.message || 'Subscription failed'
+        setMessage(`❌ ${errorMessage}`)
+      }
     } finally {
       setLoading(false)
     }
@@ -152,7 +174,7 @@ export default function SubscriptionPage() {
       return
     }
 
-    // Get Stripe config directly since there's no getStripeConfig helper
+    // Get Stripe config directly
     api.get<StripeConfig>('/stripe/config')
       .then((res) => {
         setPriceId(res.data.priceId)
