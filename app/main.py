@@ -32,12 +32,11 @@ app = FastAPI(title="ChatCommit API", version="0.1.0")  # 1
 # ─── MIDDLEWARE ────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=True,    # you’re passing Bearer tokens
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 @app.get("/", tags=["root"])
 def root():  # 10
     return {"message": "ChatCommit backend"}
