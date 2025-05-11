@@ -41,6 +41,9 @@ class SubscriptionRequest(BaseModel):
     paymentMethodId: str
     planId: str
 
+class ConfirmSubscriptionRequest(BaseModel):
+    payment_intent_id: str
+
 class SubscriptionResponse(BaseModel):
     subscribed: bool
     date_subscribed: datetime | None
@@ -304,6 +307,148 @@ async def create_subscription(
             detail=str(e)
         )
 
+@router.post("/confirm", response_model=SubscriptionResponse)
+async def confirm_subscription(
+    payload: ConfirmSubscriptionRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Confirm a subscription after payment authentication has been completed"""
+    try:
+        logger.info(f"Confirming subscription payment for user {current_user.email}")
+        
+        if not current_user.stripe_customer_id:
+            logger.error("No Stripe customer ID for user")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No Stripe customer found for this user"
+            )
+            
+        # Retrieve the payment intent
+        try:
+            payment_intent = stripe.PaymentIntent.retrieve(payload.payment_intent_id)
+            logger.info(f"Payment intent status: {payment_intent.status}")
+            
+            # Check if this payment is associated with an invoice/subscription
+            if hasattr(payment_intent, 'invoice') and payment_intent.invoice:
+                invoice = stripe.Invoice.retrieve(payment_intent.invoice)
+                if invoice.subscription:
+                    subscription = stripe.Subscription.retrieve(invoice.subscription)
+                    
+                    # If the payment was successful and subscription is now active
+                    if payment_intent.status == 'succeeded' and subscription.status == 'active':
+                        # Update user subscription status
+                        now = datetime.utcnow()
+                        
+                        # Get expiration date
+                        try:
+                            if hasattr(subscription, 'current_period_end') and subscription.current_period_end:
+                                expires = datetime.utcfromtimestamp(subscription.current_period_end)
+                            else:
+                                # Fallback
+                                expires = now + timedelta(days=30)
+                        except Exception as e:
+                            logger.error(f"Error processing expiration date: {str(e)}")
+                            expires = now + timedelta(days=30)
+                            
+                        # Update user record
+                        current_user.subscribed = True
+                        current_user.date_subscribed = now
+                        current_user.date_subscription_expires = expires
+                        current_user.activated = True
+                        db.commit()
+                        
+                        logger.info(f"Subscription confirmed and activated for {current_user.email} until {expires}")
+                        
+                        return SubscriptionResponse(
+                            subscribed=True,
+                            date_subscribed=now,
+                            date_subscription_expires=expires,
+                            requires_action=False,
+                            payment_intent_client_secret=None
+                        )
+                    elif subscription.status == 'incomplete':
+                        if payment_intent.status == 'requires_action':
+                            # Still needs action
+                            return SubscriptionResponse(
+                                subscribed=False,
+                                date_subscribed=None,
+                                date_subscription_expires=None,
+                                requires_action=True,
+                                payment_intent_client_secret=payment_intent.client_secret
+                            )
+                        else:
+                            logger.warning(f"Payment failed or incomplete: {payment_intent.status}")
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Payment failed with status: {payment_intent.status}"
+                            )
+            
+            # Handle case where payment succeeded but isn't linked to subscription
+            if payment_intent.status == 'succeeded':
+                logger.info("Payment succeeded but no subscription found - checking for subscriptions")
+                
+                # Look for any recent subscriptions that might be related
+                subscriptions = stripe.Subscription.list(
+                    customer=current_user.stripe_customer_id,
+                    limit=1
+                )
+                
+                if subscriptions and subscriptions.data and subscriptions.data[0].status == 'active':
+                    subscription = subscriptions.data[0]
+                    now = datetime.utcnow()
+                    
+                    # Get expiration date
+                    try:
+                        if hasattr(subscription, 'current_period_end') and subscription.current_period_end:
+                            expires = datetime.utcfromtimestamp(subscription.current_period_end)
+                        else:
+                            expires = now + timedelta(days=30)
+                    except Exception as e:
+                        logger.error(f"Error processing expiration date: {str(e)}")
+                        expires = now + timedelta(days=30)
+                    
+                    # Update user record
+                    current_user.subscribed = True
+                    current_user.date_subscribed = now
+                    current_user.date_subscription_expires = expires
+                    current_user.activated = True
+                    db.commit()
+                    
+                    logger.info(f"Found active subscription for {current_user.email}, activated until {expires}")
+                    
+                    return SubscriptionResponse(
+                        subscribed=True,
+                        date_subscribed=now,
+                        date_subscription_expires=expires,
+                        requires_action=False,
+                        payment_intent_client_secret=None
+                    )
+            
+            # If we got here, the payment succeeded but we couldn't find a subscription
+            logger.warning("Payment confirmed but no subscription could be activated")
+            return SubscriptionResponse(
+                subscribed=current_user.subscribed,
+                date_subscribed=current_user.date_subscribed,
+                date_subscription_expires=current_user.date_subscription_expires,
+                requires_action=False,
+                payment_intent_client_secret=None
+            )
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error during confirmation: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Payment confirmation error: {str(e)}"
+            )
+            
+    except Exception as e:
+        logger.error(f"Error in confirm_subscription: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to confirm subscription"
+        )
+
 @router.post("/webhook")
 async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db)):
     """Handle Stripe webhook events"""
@@ -350,31 +495,4 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
                 try:
                     invoice = stripe.Invoice.retrieve(payment_intent.invoice)
                     if invoice.subscription:
-                        subscription = stripe.Subscription.retrieve(invoice.subscription)
-                        if subscription.status == 'active':
-                            user = db.query(User).filter_by(
-                                stripe_customer_id=subscription.customer
-                            ).first()
-                            if user:
-                                user.subscribed = True
-                                user.date_subscribed = datetime.utcnow()
-                                # Set expiration safely
-                                if hasattr(subscription, 'current_period_end') and subscription.current_period_end:
-                                    user.date_subscription_expires = datetime.utcfromtimestamp(
-                                        subscription.current_period_end
-                                    )
-                                else:
-                                    user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
-                                db.commit()
-                                logger.info(f"Updated subscription via payment success for {user.email}")
-                except Exception as e:
-                    logger.error(f"Error processing payment success webhook: {str(e)}")
-
-        return {"status": "success"}
-
-    except Exception as e:
-        logger.error(f"Webhook error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+                        subscription = stripe.Subscription.retrieve(
