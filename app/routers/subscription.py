@@ -12,7 +12,7 @@ from passlib.context import CryptContext
 
 from ..database import get_db
 from ..models import User
-from app.routers.auth import create_access_token  # your auth helper
+from app.routers.auth   import get_current_user
 
 # logging
 logger = logging.getLogger("subscription")
