@@ -100,11 +100,14 @@ function SubscriptionForm({ priceId }: SubscriptionFormProps): React.ReactElemen
       <div className="space-y-4 mb-4">
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black">
           <label className="block mb-1 text-gray-700">Card number</label>
-          <CardNumberElement
-            options={{
-              style: { base: { fontSize: '16px' } }
-            }}
-          />
+<CardNumberElement
+  options={{
+    style: { base: { fontSize: '16px' } },
+    appearance: {
+      theme: 'stripe',
+    },
+  }}
+/>
         </div>
 
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black flex gap-4">
