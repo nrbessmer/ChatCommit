@@ -32,8 +32,8 @@ app = FastAPI(title="ChatCommit API", version="0.1.0")  # 1
 # ─── MIDDLEWARE ────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,    # you’re passing Bearer tokens
+    allow_origins=origins,          # ← use the list you just defined
+    allow_credentials=True,         # cookies / auth headers
     allow_methods=["*"],
     allow_headers=["*"],
 )
