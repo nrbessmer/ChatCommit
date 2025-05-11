@@ -93,6 +93,18 @@ export interface StripeConfig {
   priceId: string
 }
 
+export interface ApiCommit {
+  id: number
+  commit_hash: string
+  commit_message: string
+  created_at: string
+  branch_id?: number
+  tags?: string[]
+  conversation_context?: {
+    messages: string[]
+  }
+}
+
 /* ──────────────────────────────────────────────────────────
    Auth API Calls
 ────────────────────────────────────────────────────────── */
@@ -140,6 +152,19 @@ export const fetchSubscription = (): Promise<SubscriptionResponse> =>
 export const getStripeConfig = (): Promise<StripeConfig> =>
   api.get<StripeConfig>('/stripe/config')
     .then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
+   Commits API Calls
+────────────────────────────────────────────────────────── */
+export const fetchBranchCommits = async (): Promise<ApiCommit[]> => {
+  try {
+    const response = await api.get<ApiCommit[]>('/commits')
+    return response.data
+  } catch (error) {
+    console.error('Error fetching commits:', error)
+    return []
+  }
+}
 
 /* ──────────────────────────────────────────────────────────
    Helper Functions
