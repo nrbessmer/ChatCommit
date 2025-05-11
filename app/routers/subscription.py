@@ -143,38 +143,52 @@ async def create_subscription(
         try:
             logger.info("Creating subscription")
             
-            # Create subscription with expand for latest_invoice.payment_intent
+            # Create subscription WITHOUT any expand parameters
             subscription = stripe.Subscription.create(
                 customer=customer.id,
                 items=[{"price": payload.planId}],
                 payment_behavior='default_incomplete',
                 payment_settings={'save_default_payment_method': 'on_subscription'},
-                expand=['latest_invoice.payment_intent'],  # Expanded properly here
                 metadata={'user_id': str(user.id)}
             )
             
             logger.info(f"Created subscription: {subscription.id}")
 
-            # Check for payment intent directly from expanded field
-            if (hasattr(subscription, 'latest_invoice') and
-                hasattr(subscription.latest_invoice, 'payment_intent') and
-                subscription.latest_invoice.payment_intent and
-                subscription.latest_invoice.payment_intent.status == 'requires_action'):
-                
+            # If we have an invoice, retrieve it separately with payment_intent expanded
+            payment_intent_client_secret = None
+            requires_action = False
+            
+            if subscription.latest_invoice:
+                try:
+                    invoice = stripe.Invoice.retrieve(
+                        subscription.latest_invoice,
+                        expand=['payment_intent']
+                    )
+                    
+                    if invoice.payment_intent:
+                        logger.info(f"Invoice payment intent status: {invoice.payment_intent.status}")
+                        if invoice.payment_intent.status == 'requires_action':
+                            requires_action = True
+                            payment_intent_client_secret = invoice.payment_intent.client_secret
+                except stripe.error.StripeError as e:
+                    logger.warning(f"Could not expand invoice payment intent: {str(e)}")
+                    # Continue with subscription creation even if we can't get payment intent
+            
+            if requires_action:
                 logger.info("Additional authentication required")
                 return SubscriptionResponse(
                     subscribed=False,
                     date_subscribed=None,
                     date_subscription_expires=None,
                     requires_action=True,
-                    payment_intent_client_secret=subscription.latest_invoice.payment_intent.client_secret
+                    payment_intent_client_secret=payment_intent_client_secret
                 )
 
             # Set subscription dates
             now = datetime.utcnow()
             expires = datetime.utcfromtimestamp(subscription.current_period_end)
 
-            # Update user record - only mark as subscribed if status is active
+            # Update user record
             is_active = subscription.status == 'active'
             user.subscribed = is_active
             user.date_subscribed = now if is_active else None
