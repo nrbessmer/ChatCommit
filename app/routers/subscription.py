@@ -31,10 +31,8 @@ router = APIRouter(tags=["subscription"])
 
 
 class SubscriptionRequest(BaseModel):
-    email: EmailStr
-    password: str
     paymentMethodId: str
-
+    planId:           str
 
 class SubscriptionResponse(BaseModel):
     access_token: str
