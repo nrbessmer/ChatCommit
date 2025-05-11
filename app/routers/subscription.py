@@ -13,7 +13,7 @@ from ..database import get_db
 from ..models import User
 from .auth import get_current_user, create_access_token
 
-# Logging setup
+# Logging
 logger = logging.getLogger("subscription")
 logger.setLevel(logging.INFO)
 
@@ -32,48 +32,37 @@ class SubscriptionResponse(BaseModel):
     subscribed: bool
     date_subscribed: datetime | None
     date_subscription_expires: datetime | None
-    access_token: str
 
 router = APIRouter()
 
 @router.get("/", response_model=SubscriptionResponse)
-async def get_subscription_status(
-    db: Session = Depends(get_db),
+async def get_subscription(
     current_user: User = Depends(get_current_user)
 ):
     """Get current subscription status"""
-    try:
-        # Generate new access token
-        access_token = create_access_token({"sub": current_user.email})
-        
-        return SubscriptionResponse(
-            subscribed=current_user.subscribed,
-            date_subscribed=current_user.date_subscribed,
-            date_subscription_expires=current_user.date_subscription_expires,
-            access_token=access_token
-        )
-    except Exception as e:
-        logger.error(f"Error checking subscription: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to check subscription status"
-        )
+    logger.info(f"Checking subscription for {current_user.email}")
+    
+    return SubscriptionResponse(
+        subscribed=current_user.subscribed,
+        date_subscribed=current_user.date_subscribed,
+        date_subscription_expires=current_user.date_subscription_expires
+    )
 
 @router.post("/", response_model=SubscriptionResponse)
 async def create_subscription(
     payload: SubscriptionRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Create a new subscription"""
+    """Create or update subscription"""
     try:
-        logger.info(f"Creating subscription for user {current_user.email}")
+        logger.info(f"Creating subscription for {current_user.email}")
 
         # Create or get Stripe customer
         if not current_user.stripe_customer_id:
             customer = stripe.Customer.create(
                 email=current_user.email,
-                name=current_user.full_name,
+                name=current_user.full_name
             )
             current_user.stripe_customer_id = customer.id
             db.commit()
@@ -84,7 +73,7 @@ async def create_subscription(
         try:
             payment_method = stripe.PaymentMethod.attach(
                 payload.paymentMethodId,
-                customer=customer.id,
+                customer=customer.id
             )
             
             # Set as default payment method
@@ -92,7 +81,7 @@ async def create_subscription(
                 customer.id,
                 invoice_settings={
                     "default_payment_method": payment_method.id
-                },
+                }
             )
         except stripe.error.StripeError as e:
             logger.error(f"Payment method error: {str(e)}")
@@ -106,10 +95,26 @@ async def create_subscription(
             subscription = stripe.Subscription.create(
                 customer=customer.id,
                 items=[{"price": payload.planId}],
-                payment_behavior='default_incomplete',
-                payment_settings={'save_default_payment_method': 'on_subscription'},
-                expand=['latest_invoice.payment_intent'],
+                expand=['latest_invoice.payment_intent']
             )
+
+            # Handle subscription status
+            if subscription.status == "active":
+                current_user.subscribed = True
+                current_user.date_subscribed = datetime.utcnow()
+                current_user.date_subscription_expires = datetime.utcfromtimestamp(
+                    subscription.current_period_end
+                )
+                db.commit()
+                
+                logger.info(f"Subscription activated for {current_user.email}")
+            else:
+                logger.warning(f"Subscription status: {subscription.status}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Subscription status: {subscription.status}"
+                )
+
         except stripe.error.StripeError as e:
             logger.error(f"Subscription error: {str(e)}")
             raise HTTPException(
@@ -117,25 +122,10 @@ async def create_subscription(
                 detail=str(e)
             )
 
-        # Update user subscription status
-        now = datetime.utcnow()
-        expires = datetime.utcfromtimestamp(subscription.current_period_end)
-        
-        current_user.subscribed = True
-        current_user.date_subscribed = now
-        current_user.date_subscription_expires = expires
-        db.commit()
-
-        # Generate new access token
-        access_token = create_access_token({"sub": current_user.email})
-
-        logger.info(f"Subscription created for {current_user.email}")
-
         return SubscriptionResponse(
-            subscribed=True,
-            date_subscribed=now,
-            date_subscription_expires=expires,
-            access_token=access_token
+            subscribed=current_user.subscribed,
+            date_subscribed=current_user.date_subscribed,
+            date_subscription_expires=current_user.date_subscription_expires
         )
 
     except Exception as e:
