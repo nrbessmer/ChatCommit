@@ -30,6 +30,14 @@ logger = logging.getLogger("uvicorn.error")
 app = FastAPI(title="ChatCommit API", version="0.1.0")  # 1
 
 # ─── MIDDLEWARE ────────────────────────────────────────────────
+
+
+# ─── CORS CONFIG ───────────────────────────────────────────────
+# explicitly list all origins that will call your API
+origins = [
+    "https://chat-commit.vercel.app",  # your production frontend
+    "http://localhost:3000",           # local dev
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,          # ← use the list you just defined
