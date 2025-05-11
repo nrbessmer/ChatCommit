@@ -22,7 +22,7 @@ interface SubscriptionFormProps {
   priceId: string
 }
 
-function SubscriptionForm({ priceId }: SubscriptionFormProps): JSX.Element {
+function SubscriptionForm({ priceId }: SubscriptionFormProps): React.ReactElement {
   const stripe = useStripe()
   const elements = useElements()
   const [loading, setLoading] = useState(false)
@@ -154,7 +154,7 @@ function SubscriptionForm({ priceId }: SubscriptionFormProps): JSX.Element {
   )
 }
 
-export default function SubscriptionPage(): JSX.Element {
+export default function SubscriptionPage(): React.ReactElement {
   const router = useRouter()
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
   const [priceId, setPriceId] = useState<string>('')
