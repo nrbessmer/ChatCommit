@@ -63,6 +63,39 @@ async def get_subscription_status(
     """Get current subscription status"""
     try:
         logger.info(f"Checking subscription status for {current_user.email}")
+        
+        # Check if there's an incomplete subscription that needs payment confirmation
+        if not current_user.subscribed and current_user.stripe_customer_id:
+            try:
+                # Look for any incomplete subscriptions
+                subscriptions = stripe.Subscription.list(
+                    customer=current_user.stripe_customer_id,
+                    status='incomplete',
+                    limit=1
+                )
+                
+                if subscriptions and subscriptions.data:
+                    sub = subscriptions.data[0]
+                    logger.info(f"Found incomplete subscription: {sub.id}")
+                    
+                    # Get the invoice and payment intent
+                    if sub.latest_invoice:
+                        invoice = stripe.Invoice.retrieve(sub.latest_invoice)
+                        if invoice.payment_intent:
+                            payment_intent = stripe.PaymentIntent.retrieve(invoice.payment_intent)
+                            if payment_intent.status == 'requires_action' or payment_intent.status == 'requires_confirmation':
+                                logger.info(f"Payment intent {payment_intent.id} requires action")
+                                return SubscriptionResponse(
+                                    subscribed=False,
+                                    date_subscribed=None,
+                                    date_subscription_expires=None,
+                                    requires_action=True,
+                                    payment_intent_client_secret=payment_intent.client_secret
+                                )
+            except Exception as e:
+                logger.error(f"Error checking incomplete subscriptions: {str(e)}")
+                # Continue to return normal status
+        
         return SubscriptionResponse(
             subscribed=current_user.subscribed,
             date_subscribed=current_user.date_subscribed,
@@ -155,30 +188,32 @@ async def create_subscription(
             logger.info(f"Created subscription: {subscription.id}")
             logger.info(f"Subscription details: id={subscription.id}, status={subscription.status}")
             
-            # Debug - log all available keys
-            logger.info(f"Subscription fields: {dir(subscription)}")
+            # For debugging
+            subscription_data = {k: v for k, v in subscription.items() if not k.startswith('_')}
+            logger.info(f"Subscription data: {subscription_data}")
 
-            # If we have an invoice, retrieve it separately with payment_intent expanded
+            # If we have an invoice, retrieve it separately
             payment_intent_client_secret = None
             requires_action = False
+            payment_intent = None
             
             if subscription.latest_invoice:
                 try:
-                    invoice = stripe.Invoice.retrieve(
-                        subscription.latest_invoice,
-                        expand=['payment_intent']
-                    )
+                    invoice = stripe.Invoice.retrieve(subscription.latest_invoice)
+                    logger.info(f"Invoice: {invoice.id}, status: {invoice.status}")
                     
+                    # For incomplete subscriptions, we need the payment intent
                     if invoice.payment_intent:
-                        logger.info(f"Invoice payment intent status: {invoice.payment_intent.status}")
-                        if invoice.payment_intent.status == 'requires_action':
+                        payment_intent = stripe.PaymentIntent.retrieve(invoice.payment_intent)
+                        logger.info(f"Payment intent: {payment_intent.id}, status: {payment_intent.status}")
+                        
+                        if payment_intent.status == 'requires_action' or payment_intent.status == 'requires_confirmation':
                             requires_action = True
-                            payment_intent_client_secret = invoice.payment_intent.client_secret
+                            payment_intent_client_secret = payment_intent.client_secret
                 except stripe.error.StripeError as e:
-                    logger.warning(f"Could not expand invoice payment intent: {str(e)}")
-                    # Continue with subscription creation even if we can't get payment intent
+                    logger.warning(f"Could not retrieve invoice details: {str(e)}")
             
-            if requires_action:
+            if requires_action and payment_intent_client_secret:
                 logger.info("Additional authentication required")
                 return SubscriptionResponse(
                     subscribed=False,
@@ -186,6 +221,18 @@ async def create_subscription(
                     date_subscription_expires=None,
                     requires_action=True,
                     payment_intent_client_secret=payment_intent_client_secret
+                )
+            
+            # When the subscription is incomplete but no requires_action was found
+            if subscription.status == 'incomplete' and payment_intent and payment_intent.status != 'succeeded':
+                # Tell the front-end the subscription needs confirmation
+                logger.info("Subscription requires confirmation")
+                return SubscriptionResponse(
+                    subscribed=False,
+                    date_subscribed=None,
+                    date_subscription_expires=None,
+                    requires_action=True,
+                    payment_intent_client_secret=payment_intent.client_secret if payment_intent else None
                 )
 
             # Set subscription dates with proper error handling
@@ -202,7 +249,6 @@ async def create_subscription(
                     expires = now + timedelta(days=30)
             except Exception as period_error:
                 logger.error(f"Error processing current_period_end: {str(period_error)}")
-                logger.error(f"Subscription object type: {type(subscription)}")
                 # Fallback - use 30 days from now
                 expires = now + timedelta(days=30)
 
@@ -275,6 +321,37 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
                 
                 db.commit()
                 logger.info(f"Updated subscription status for {user.email}")
+        
+        # Handle payment_intent.succeeded for updating subscriptions
+        elif event.type == 'payment_intent.succeeded':
+            payment_intent = event.data.object
+            logger.info(f"Payment intent succeeded: {payment_intent.id}")
+            
+            # Update any subscriptions associated with this payment
+            if 'invoice' in payment_intent.metadata:
+                invoice_id = payment_intent.metadata.invoice
+                try:
+                    invoice = stripe.Invoice.retrieve(invoice_id)
+                    if invoice.subscription:
+                        subscription = stripe.Subscription.retrieve(invoice.subscription)
+                        if subscription.status == 'active':
+                            user = db.query(User).filter_by(
+                                stripe_customer_id=subscription.customer
+                            ).first()
+                            if user:
+                                user.subscribed = True
+                                user.date_subscribed = datetime.utcnow()
+                                # Set expiration safely
+                                if hasattr(subscription, 'current_period_end') and subscription.current_period_end:
+                                    user.date_subscription_expires = datetime.utcfromtimestamp(
+                                        subscription.current_period_end
+                                    )
+                                else:
+                                    user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
+                                db.commit()
+                                logger.info(f"Updated subscription via payment success for {user.email}")
+                except Exception as e:
+                    logger.error(f"Error processing payment success webhook: {str(e)}")
 
         return {"status": "success"}
 
