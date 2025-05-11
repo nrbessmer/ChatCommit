@@ -23,7 +23,10 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log('[popup] binding login handler');
   const loginBtn = document.getElementById("login-submit");
   console.log('[popup] loginBtn is', loginBtn);
-  loginBtn.onclick = async () => {
+  // prevent form submission reload
+  loginBtn.type = "button";
+  loginBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
     console.log('[popup] login button clicked');
     const email    = document.getElementById("login-email").value.trim();
     const password = document.getElementById("login-password").value;
@@ -50,8 +53,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error("Login error:", err);
       loginStatus.textContent = "❌ Login failed";
     }
-  };
-
+  });
 
   // ───── MAIN APP ─────
   function initApp() {
@@ -113,9 +115,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     saveSettingsBtn.onclick = () => {
       chrome.storage.local.set({
-        openai:  openaiKeyField.value.trim(),
-        repoUrl: backendUrlField.value.trim(),
-        repoHook:repoHookField.value.trim()
+        openai:   openaiKeyField.value.trim(),
+        repoUrl:  backendUrlField.value.trim(),
+        repoHook: repoHookField.value.trim()
       }, () => {
         statusMsg.textContent       = "✅ Settings saved";
         settingsPanel.style.display = "none";
@@ -139,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
     const fetchBranches = async (base) => {
-      console.log('[popup] fetchBranches fetching from', base+'/branch/');
+      console.log('[popup] fetchBranches fetching from', base + '/branch/');
       const r = await fetch(`${base}/branch/`, {
         headers: { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}` }
       });
@@ -203,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
         statusMsg.textContent = "❌ Failed to scrape";
       }
     };
-    refreshBtn.onclick    = () => getBackend().then(scrapeChat);
+    refreshBtn.onclick     = () => getBackend().then(scrapeChat);
     copyContextBtn.onclick = () =>
       navigator.clipboard.writeText(contextArea.value)
         .then(() => statusMsg.textContent = "✅ Context copied")
@@ -211,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ─── COMMIT ───
     commitBtn.onclick = async () => {
-      const base = await getBackend();
+      const base          = await getBackend();
       const commit_message = messageInput.value.trim();
       let ctx;
       try {
@@ -224,7 +226,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return statusMsg.textContent = "❌ Missing commit data";
       }
 
-      // 🔍 DEBUG: log token & URL
       console.log("COMMIT: using token", localStorage.getItem(STORAGE_KEY_TOKEN));
       console.log("COMMIT: POST to", `${base}/commit/`);
 
@@ -299,85 +300,84 @@ document.addEventListener("DOMContentLoaded", () => {
       chrome.tabs.create({ url: "https://chat-commit.vercel.app/timeline" });
 
     <!-- ───────── MERGE PANEL ───────── -->
-<div class="container" id="merge-panel" style="display:none">
-  <h2 class="header">🔀 Merge Branches</h2>
+    <div class="container" id="merge-panel" style="display:none">
+      <h2 class="header">🔀 Merge Branches</h2>
 
-  <label for="merge-source">Source Branch</label>
-  <select id="merge-source"></select>
+      <label for="merge-source">Source Branch</label>
+      <select id="merge-source"></select>
 
-  <label for="merge-target">Target Branch</label>
-  <select id="merge-target"></select>
+      <label for="merge-target">Target Branch</label>
+      <select id="merge-target"></select>
 
-  <div class="button-group">
-    <button id="execute-merge" class="blue">✅ Confirm</button>
-    <button id="cancel-merge">⬅️ Cancel</button>
-  </div>
+      <div class="button-group">
+        <button id="execute-merge" class="blue">✅ Confirm</button>
+        <button id="cancel-merge">⬅️ Cancel</button>
+      </div>
 
-  <p id="merge-status" class="message"></p>
-</div>
+      <p id="merge-status" class="message"></p>
+    </div>
 
-<script>
-  const API_BASE = 'https://chatcommit.fly.dev';
+    <script>
+      const API_BASE = 'https://chatcommit.fly.dev';
 
-  async function loadBranchesInto(selectorIds) {
-    try {
-      const resp = await fetch(`${API_BASE}/branch/`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const branches = await resp.json();
-      selectorIds.forEach(id => {
-        const sel = document.getElementById(id);
-        sel.innerHTML = `<option value="">-- Select branch --</option>`;
-        branches.forEach(b => {
-          const opt = document.createElement('option');
-          opt.value = b.id;
-          opt.textContent = `${b.name} (#${b.id})`;
-          sel.appendChild(opt);
+      async function loadBranchesInto(selectorIds) {
+        try {
+          const resp = await fetch(`${API_BASE}/branch/`);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const branches = await resp.json();
+          selectorIds.forEach(id => {
+            const sel = document.getElementById(id);
+            sel.innerHTML = `<option value="">-- Select branch --</option>`;
+            branches.forEach(b => {
+              const opt = document.createElement('option');
+              opt.value = b.id;
+              opt.textContent = `${b.name} (#${b.id})`;
+              sel.appendChild(opt);
+            });
+          });
+        } catch (err) {
+          console.error('Failed to load branches:', err);
+          document.getElementById('merge-status').textContent = '❌ Could not load branches';
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        // populate both selects
+        loadBranchesInto(['merge-source', 'merge-target']);
+
+        document.getElementById('execute-merge').addEventListener('click', async () => {
+          const src = document.getElementById('merge-source').value;
+          const tgt = document.getElementById('merge-target').value;
+          const status = document.getElementById('merge-status');
+          status.textContent = '';
+
+          if (!src || !tgt || src === tgt) {
+            return alert('Please select two different branches to merge.');
+          }
+
+          try {
+            const token = localStorage.getItem('auth_token') || '';
+            const res = await fetch(
+              `${API_BASE}/merge/${src}/${tgt}`,
+              {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+              }
+            );
+            const data = await res.json();
+            if (!res.ok) throw data;
+            status.textContent = data.message;
+          } catch (err) {
+            const msg = err.detail || err.message || 'Merge failed';
+            status.textContent = `❌ ${msg}`;
+          }
+        });
+
+        document.getElementById('cancel-merge').addEventListener('click', () => {
+          document.getElementById('merge-panel').style.display = 'none';
         });
       });
-    } catch (err) {
-      console.error('Failed to load branches:', err);
-      document.getElementById('merge-status').textContent = '❌ Could not load branches';
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    // populate both selects
-    loadBranchesInto(['merge-source', 'merge-target']);
-
-    document.getElementById('execute-merge').addEventListener('click', async () => {
-      const src = document.getElementById('merge-source').value;
-      const tgt = document.getElementById('merge-target').value;
-      const status = document.getElementById('merge-status');
-      status.textContent = '';
-
-      if (!src || !tgt || src === tgt) {
-        return alert('Please select two different branches to merge.');
-      }
-
-      try {
-        const token = localStorage.getItem('auth_token') || '';
-        const res = await fetch(
-          `${API_BASE}/merge/${src}/${tgt}`,
-          {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-          }
-        );
-        const data = await res.json();
-        if (!res.ok) throw data;
-        status.textContent = data.message;
-      } catch (err) {
-        const msg = err.detail || err.message || 'Merge failed';
-        status.textContent = `❌ ${msg}`;
-      }
-    });
-
-    document.getElementById('cancel-merge').addEventListener('click', () => {
-      document.getElementById('merge-panel').style.display = 'none';
-    });
-  });
-</script>
-
+    </script>
 
     // ─── INITIALIZE ───
     getBackend().then((base) => {
