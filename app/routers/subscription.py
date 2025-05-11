@@ -1,3 +1,5 @@
+# app/routers/subscription.py
+
 import os
 import logging
 from datetime import datetime
@@ -11,110 +13,161 @@ from ..database import get_db
 from ..models import User
 from .auth import get_current_user
 
-# ─── Logging Setup ──────────────────────────────────────────
+# Logging setup
 logger = logging.getLogger("subscription")
 logger.setLevel(logging.INFO)
 
-# ─── Stripe Config ──────────────────────────────────────────
+# Stripe config
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
-
-if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
-    raise RuntimeError("Missing STRIPE_SECRET_KEY or STRIPE_PRICE_ID in env")
+if not STRIPE_SECRET_KEY:
+    raise RuntimeError("STRIPE_SECRET_KEY is required")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-# ─── Models ───────────────────────────────────────────────
-
-class SubscriptionRequest(BaseModel):
-    paymentMethodId: str
-    planId: str
-
 class SubscriptionResponse(BaseModel):
     subscribed: bool
-    date_subscribed: datetime
-    date_subscription_expires: datetime
-
-# ─── Router ───────────────────────────────────────────────
+    date_subscribed: datetime | None
+    date_subscription_expires: datetime | None
 
 router = APIRouter()
 
-@router.post(
+@router.get(
     "/",
     response_model=SubscriptionResponse,
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_200_OK
 )
-async def create_subscription(
-    payload: SubscriptionRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+async def get_subscription(
+    current_user: User = Depends(get_current_user)
 ):
-    """Create a new subscription for the authenticated user"""
+    """Get current user's subscription status"""
+    logger.info(f"Checking subscription for user {current_user.email}")
+    
+    # Check if subscription is expired
+    if (current_user.subscribed and
+        current_user.date_subscription_expires and
+        current_user.date_subscription_expires < datetime.utcnow()):
+        current_user.subscribed = False
+        db = next(get_db())
+        db.commit()
+        logger.info(f"Subscription expired for user {current_user.email}")
+
+    return SubscriptionResponse(
+        subscribed=current_user.subscribed,
+        date_subscribed=current_user.date_subscribed,
+        date_subscription_expires=current_user.date_subscription_expires
+    )
+
+@router.post(
+    "/cancel",
+    response_model=SubscriptionResponse,
+    status_code=status.HTTP_200_OK
+)
+async def cancel_subscription(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Cancel user's subscription"""
     try:
-        logger.info(f"Processing subscription for user {current_user.email}")
+        logger.info(f"Canceling subscription for user {current_user.email}")
 
-        # 1) Ensure Stripe customer
-        if not current_user.stripe_customer_id:
-            customer = stripe.Customer.create(
-                email=current_user.email,
-                name=current_user.full_name,
-            )
-            current_user.stripe_customer_id = customer.id
-            db.commit()
-        else:
-            customer = stripe.Customer.retrieve(current_user.stripe_customer_id)
-
-        # 2) Attach payment method
-        try:
-            stripe.PaymentMethod.attach(
-                payload.paymentMethodId,
-                customer=customer.id,
-            )
-            stripe.Customer.modify(
-                customer.id,
-                invoice_settings={"default_payment_method": payload.paymentMethodId},
-            )
-        except stripe.error.StripeError as e:
-            logger.error(f"Payment method error: {str(e)}")
+        if not current_user.subscribed:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
+                detail="No active subscription to cancel"
             )
 
-        # 3) Create subscription
-        try:
-            subscription = stripe.Subscription.create(
-                customer=customer.id,
-                items=[{"price": payload.planId}],
-                expand=["latest_invoice.payment_intent"],
-            )
-        except stripe.error.StripeError as e:
-            logger.error(f"Subscription creation error: {str(e)}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
-            )
+        # If user has a Stripe subscription, cancel it
+        if current_user.stripe_customer_id:
+            try:
+                subscriptions = stripe.Subscription.list(
+                    customer=current_user.stripe_customer_id,
+                    status="active"
+                )
+                
+                for subscription in subscriptions.data:
+                    stripe.Subscription.delete(subscription.id)
+            except stripe.error.StripeError as e:
+                logger.error(f"Stripe error while canceling: {str(e)}")
+                # Continue with local cancellation even if Stripe fails
 
-        # 4) Update user subscription status
-        started = datetime.utcfromtimestamp(subscription.created)
-        expires = datetime.utcfromtimestamp(subscription.current_period_end)
-
-        current_user.subscribed = True
-        current_user.date_subscribed = started
-        current_user.date_subscription_expires = expires
+        # Update local subscription status
+        current_user.subscribed = False
+        current_user.date_subscription_expires = datetime.utcnow()
         db.commit()
 
-        logger.info(f"Subscription created successfully for {current_user.email}")
+        logger.info(f"Subscription canceled for user {current_user.email}")
 
         return SubscriptionResponse(
-            subscribed=True,
-            date_subscribed=started,
-            date_subscription_expires=expires,
+            subscribed=False,
+            date_subscribed=current_user.date_subscribed,
+            date_subscription_expires=current_user.date_subscription_expires
         )
 
     except Exception as e:
-        logger.error(f"Subscription error: {str(e)}")
+        logger.error(f"Error canceling subscription: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred processing the subscription"
+            detail="Failed to cancel subscription"
+        )
+
+@router.post(
+    "/check-status",
+    response_model=SubscriptionResponse,
+    status_code=status.HTTP_200_OK
+)
+async def check_subscription_status(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Check and update subscription status from Stripe"""
+    try:
+        logger.info(f"Checking Stripe subscription for user {current_user.email}")
+
+        if not current_user.stripe_customer_id:
+            return SubscriptionResponse(
+                subscribed=current_user.subscribed,
+                date_subscribed=current_user.date_subscribed,
+                date_subscription_expires=current_user.date_subscription_expires
+            )
+
+        # Check Stripe subscription status
+        try:
+            subscriptions = stripe.Subscription.list(
+                customer=current_user.stripe_customer_id,
+                status="active"
+            )
+            
+            has_active = False
+            latest_end = None
+            
+            for subscription in subscriptions.data:
+                if subscription.status == "active":
+                    has_active = True
+                    end_date = datetime.utcfromtimestamp(subscription.current_period_end)
+                    if not latest_end or end_date > latest_end:
+                        latest_end = end_date
+
+            # Update local status if different
+            if has_active != current_user.subscribed:
+                current_user.subscribed = has_active
+                if has_active:
+                    current_user.date_subscription_expires = latest_end
+                db.commit()
+                logger.info(f"Updated subscription status for {current_user.email}: {has_active}")
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error checking status: {str(e)}")
+            # Continue with current local status
+
+        return SubscriptionResponse(
+            subscribed=current_user.subscribed,
+            date_subscribed=current_user.date_subscribed,
+            date_subscription_expires=current_user.date_subscription_expires
+        )
+
+    except Exception as e:
+        logger.error(f"Error checking subscription status: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to check subscription status"
         )
