@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from passlib.hash import bcrypt
+from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 import secrets
@@ -13,7 +13,6 @@ from ..database import get_db
 from ..models import User
 from ..schemas import (
     UserRegister,
-    UserRead,
     UserActivate,
     UserActivateResponse,
     Token,
@@ -27,11 +26,14 @@ ACCESS_TOKEN_EXPIRE_HOURS = 24
 router = APIRouter(tags=["auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/users/token")
 
+# Use CryptContext instead of bcrypt directly
+pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.verify(plain_password, hashed_password)
+    return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    return bcrypt.hash(password)
+    return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
@@ -48,8 +50,9 @@ def get_current_user(
         email: str | None = payload.get("sub")
         if email is None:
             raise HTTPException(status_code=401, detail="Token payload invalid")
-    except PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    except PyJWTError as e:
+        raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+    
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
@@ -85,6 +88,7 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
         **user.dict(exclude={"password"}),
         password_hash=hashed,
         token=token,
+        subscribed=False
     )
     db.add(db_user)
     db.commit()
@@ -114,15 +118,9 @@ def login_for_access_token(
     user = db.query(User).filter_by(email=form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    if not user.subscribed or (
-        user.date_subscription_expires
-        and user.date_subscription_expires < datetime.utcnow()
-    ):
-        raise HTTPException(status_code=403, detail="Subscription required")
-    
-    access = create_access_token({"sub": user.email})
-    return {"access_token": access, "token_type": "bearer"}
+
+    access_token = create_access_token({"sub": user.email})
+    return {"access_token": access_token, "token_type": "bearer"}
 
 # ─── JSON‑based /login endpoint ───────────────────────────
 
@@ -131,12 +129,6 @@ def login_json(user: UserLoginJSON, db: Session = Depends(get_db)):
     db_user = db.query(User).filter_by(email=user.email).first()
     if not db_user or not verify_password(user.password, db_user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    if not db_user.subscribed or (
-        db_user.date_subscription_expires
-        and db_user.date_subscription_expires < datetime.utcnow()
-    ):
-        raise HTTPException(status_code=403, detail="Subscription required")
     
     access_token = create_access_token({"sub": db_user.email})
     return {"access_token": access_token, "token_type": "bearer"}
@@ -149,9 +141,9 @@ def activate(payload: UserActivate, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=400, detail="Invalid activation token")
     
-    user.subscribed = True
-    user.date_subscribed = datetime.utcnow()
-    user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
-    db.commit()
-    
-    return {"message": "Account activated, subscription is now active."}
+    access_token = create_access_token({"sub": user.email})
+    return {
+        "message": "Account activated.",
+        "access_token": access_token,
+        "token_type": "bearer"
+    }

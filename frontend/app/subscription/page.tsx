@@ -1,10 +1,8 @@
-// app/subscription/page.tsx
+'use client'
 
-'use client';
-
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { loadStripe, Stripe } from '@stripe/stripe-js';
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { loadStripe, Stripe } from '@stripe/stripe-js'
 import {
   Elements,
   CardNumberElement,
@@ -12,63 +10,72 @@ import {
   CardCvcElement,
   useStripe,
   useElements,
-} from '@stripe/react-stripe-js';
-import { api, createSubscription, fetchSubscription } from '@/lib/api';
+} from '@stripe/react-stripe-js'
+import { api, createSubscription, fetchSubscription } from '@/lib/api'
 
 interface StripeConfig {
-  publishableKey: string;
-  priceId: string;
+  publishableKey: string
+  priceId: string
 }
 
-interface SubscriptionFormProps {
-  priceId: string;
-}
-
-function SubscriptionForm({ priceId }: SubscriptionFormProps) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string>('');
+function SubscriptionForm({ priceId }: { priceId: string }) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState<string>('')
 
   const handleSubscribe = async () => {
-    if (!stripe || !elements) return;
-    setLoading(true);
-    setMessage('');
+    if (!stripe || !elements) return
+    setLoading(true)
+    setMessage('')
 
     try {
-      const card = elements.getElement(CardNumberElement);
+      const card = elements.getElement(CardNumberElement)
       if (!card) {
-        throw new Error('Card element not found');
+        throw new Error('Card element not found')
       }
 
       // Create payment method
       const { error, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card,
-      });
+      })
 
       if (error || !paymentMethod) {
-        throw new Error(error?.message ?? 'Failed to create payment method');
+        throw new Error(error?.message ?? 'Failed to create payment method')
       }
 
       // Create subscription
       const response = await createSubscription({
         paymentMethodId: paymentMethod.id,
         planId: priceId,
-      });
+      })
 
       setMessage(
         `✅ Subscribed until ${new Date(
           response.date_subscription_expires
         ).toLocaleDateString()}`
-      );
+      )
+
+      // Optional: redirect to dashboard after successful subscription
+      // setTimeout(() => router.push('/dashboard'), 2000)
 
     } catch (e: any) {
-      setMessage('❌ ' + (e.response?.data?.detail || e.message || 'Subscription failed'));
+      console.error('Subscription error:', e)
+      setMessage(
+        '❌ ' + (e.response?.data?.detail || e.message || 'Subscription failed')
+      )
+
+      // If unauthorized, redirect to login
+      if (e.response?.status === 401) {
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 2000)
+      }
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="max-w-md mx-auto bg-gray-900 text-white p-6 mt-20 rounded-lg shadow">
@@ -112,42 +119,47 @@ function SubscriptionForm({ priceId }: SubscriptionFormProps) {
         <p className="mt-4 text-sm text-yellow-300 whitespace-pre-wrap">{message}</p>
       )}
     </div>
-  );
+  )
 }
 
 export default function SubscriptionPage() {
-  const router = useRouter();
-  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
-  const [priceId, setPriceId] = useState<string>('');
-  const [checking, setChecking] = useState(true);
-  const [already, setAlready] = useState(false);
+  const router = useRouter()
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
+  const [priceId, setPriceId] = useState<string>('')
+  const [checking, setChecking] = useState(true)
+  const [already, setAlready] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('auth_token')
     if (!token) {
-      router.push('/login');
-      return;
+      router.push('/login')
+      return
     }
 
-    // Check subscription status and load Stripe config
-    Promise.all([
-      api.get<StripeConfig>('/stripe/config'),
-      fetchSubscription().catch(() => null)
-    ])
-      .then(([configRes, subRes]) => {
-        setPriceId(configRes.data.priceId);
-        setStripePromise(loadStripe(configRes.data.publishableKey));
-        
-        if (subRes?.subscribed) {
-          setAlready(true);
+    // First check subscription status
+    fetchSubscription()
+      .then(response => {
+        if (response.subscribed) {
+          setAlready(true)
         }
       })
-      .catch(console.error)
-      .finally(() => setChecking(false));
-  }, [router]);
+      .catch(() => {
+        // Not subscribed - continue loading Stripe
+      })
+      .finally(() => {
+        // Then load Stripe configuration
+        api.get<StripeConfig>('/stripe/config')
+          .then(res => {
+            setPriceId(res.data.priceId)
+            setStripePromise(loadStripe(res.data.publishableKey))
+          })
+          .catch(console.error)
+          .finally(() => setChecking(false))
+      })
+  }, [router])
 
   if (checking) {
-    return <div className="mt-20 text-center">Loading…</div>;
+    return <div className="mt-20 text-center">Loading…</div>
   }
 
   if (already) {
@@ -155,16 +167,16 @@ export default function SubscriptionPage() {
       <div className="mt-20 text-center text-green-600">
         You already have an active subscription.
       </div>
-    );
+    )
   }
 
   if (!stripePromise) {
-    return <div className="mt-20 text-center">Loading payment form…</div>;
+    return <div className="mt-20 text-center">Loading payment form…</div>
   }
 
   return (
     <Elements stripe={stripePromise}>
       <SubscriptionForm priceId={priceId} />
     </Elements>
-  );
+  )
 }
