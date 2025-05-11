@@ -58,27 +58,12 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
 
       setMessage('Setting up subscription...')
       const response = await createSubscription({
-        email,
         paymentMethodId: paymentMethod.id,
         planId: priceId
       })
 
-      if (response.requires_action && response.payment_intent_client_secret) {
-        setMessage('Additional authentication required...')
-        const { error } = await stripe.confirmCardPayment(
-          response.payment_intent_client_secret
-        )
-        if (error) {
-          throw new Error(error.message)
-        }
-      }
-
-      if (response.subscribed) {
-        setMessage(`✅ Subscription activated! Valid until ${new Date(response.date_subscription_expires!).toLocaleDateString()}`)
-        setTimeout(() => router.push('/dashboard'), 2000)
-      } else {
-        setMessage('❌ Subscription not activated. Please try again.')
-      }
+      setMessage(`✅ Subscription activated! Valid until ${new Date(response.date_subscription_expires).toLocaleDateString()}`)
+      setTimeout(() => router.push('/dashboard'), 2000)
 
     } catch (e: any) {
       console.error('Subscription error:', e)
@@ -132,7 +117,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       </button>
 
       {message && (
-        <div
+        <div 
           className={`mt-4 p-3 rounded text-sm ${
             message.startsWith('✅')
               ? 'bg-green-100 text-green-800'
@@ -167,11 +152,11 @@ export default function SubscriptionPage() {
       return
     }
 
+    // Get Stripe config directly since there's no getStripeConfig helper
     api.get<StripeConfig>('/stripe/config')
       .then((res) => {
-        const config = res.data
-        setPriceId(config.priceId)
-        setStripePromise(loadStripe(config.publishableKey))
+        setPriceId(res.data.priceId)
+        setStripePromise(loadStripe(res.data.publishableKey))
       })
       .catch((error) => {
         console.error('Failed to load Stripe config:', error)
