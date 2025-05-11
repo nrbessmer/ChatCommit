@@ -3,12 +3,12 @@
 import React from 'react'
 import { useEffect, useState } from 'react'
 import CommitCard from '@/components/CommitCard'
-import { fetchBranchCommits, ApiCommit } from '@/lib/api'
+import { fetchBranchCommits, Commit } from '@/lib/api'
 
-type Commit = ApiCommit
+type LocalCommit = Commit
 
 export default function Home() {
-  const [commits, setCommits] = useState<Commit[]>([])
+  const [commits, setCommits] = useState<LocalCommit[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
