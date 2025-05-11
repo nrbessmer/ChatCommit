@@ -102,10 +102,7 @@ function SubscriptionForm({ priceId }: SubscriptionFormProps) {
           <label className="block mb-1 text-gray-700">Card number</label>
           <CardNumberElement
             options={{
-              style: { base: { fontSize: '16px' } },
-              appearance: {
-                theme: 'stripe',
-              }
+              style: { base: { fontSize: '16px' } }
             }}
           />
         </div>
