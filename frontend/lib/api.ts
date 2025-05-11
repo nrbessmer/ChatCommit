@@ -1,7 +1,5 @@
-// ------------------------------------------------------------
-// Central place for every HTTP call to the FastAPI backend.
-// Every helper returns the _data_ payload directly (not AxiosResponse).
-// ------------------------------------------------------------
+
+// frontend/lib/api.ts
 
 import axios from 'axios'
 
@@ -26,21 +24,29 @@ api.interceptors.request.use(config => {
   return config
 })
 
-// Add response interceptor for error handling
-api.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      // Clear invalid token
-      localStorage.removeItem('auth_token')
-    }
-    return Promise.reject(error)
-  }
-)
-
 /* ──────────────────────────────────────────────────────────
    Types
 ────────────────────────────────────────────────────────── */
+export interface Commit {
+  id: number
+  commit_hash: string
+  commit_message: string
+  created_at: string
+  branch_id?: number
+}
+
+export interface Branch {
+  id: number
+  name: string
+  current_commit_id?: number | null
+}
+
+export interface Tag {
+  id: number
+  name: string
+  commit_id: number
+}
+
 export interface UserRegisterPayload {
   full_name: string
   address: string
@@ -97,7 +103,6 @@ export const registerUser = (
 ): Promise<RegisterResponse> =>
   api.post<RegisterResponse>('/auth/users/register', data)
     .then(res => {
-      // Store auth token and email
       if (res.data.access_token) {
         localStorage.setItem('auth_token', res.data.access_token)
         localStorage.setItem('user_email', res.data.email)
@@ -132,6 +137,77 @@ export const fetchSubscription = (): Promise<SubscriptionResponse> =>
     .then(res => res.data)
 
 /* ──────────────────────────────────────────────────────────
+   Git Operations
+────────────────────────────────────────────────────────── */
+export const fetchBranches = (): Promise<Branch[]> =>
+  api.get<Branch[]>('/branch/').then(res => res.data)
+
+export const fetchBranch = (id: number): Promise<Branch> =>
+  api.get<Branch>(`/branch/${id}`).then(res => res.data)
+
+export const createBranch = (
+  name: string,
+  baseId?: number
+): Promise<Branch> =>
+  api.post<Branch>('/branch/', { name, base_commit_id: baseId }).then(res => res.data)
+
+export const fetchBranchCommits = (branchId: number): Promise<Commit[]> =>
+  api.get<Commit[]>(`/branch/${branchId}/commits`).then(res => res.data)
+
+export const fetchCommit = (id: number): Promise<Commit> =>
+  api.get<Commit>(`/commit/${id}`).then(res => res.data)
+
+export const createCommit = (payload: {
+  commit_message: string
+  conversation_context: any
+  branch_id?: number
+}): Promise<Commit> => api.post<Commit>('/commit/', payload).then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
+   Timeline
+────────────────────────────────────────────────────────── */
+export const fetchTimeline = (params?: {
+  branch_id?: number
+  tag?: string
+  start_date?: string
+  end_date?: string
+}): Promise<Commit[]> => api.get<Commit[]>('/timeline/', { params }).then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
+   Tags
+────────────────────────────────────────────────────────── */
+export const fetchTags = (): Promise<Tag[]> =>
+  api.get<Tag[]>('/tag/').then(res => res.data)
+
+export const fetchCommitTags = (commitId: number): Promise<Tag[]> =>
+  api.get<Tag[]>(`/tag/commit/${commitId}`).then(res => res.data)
+
+export const fetchBranchTags = (branchId: number): Promise<Tag[]> =>
+  api.get<Tag[]>(`/tag/branch/${branchId}`).then(res => res.data)
+
+export const createTag = (name: string, commitId: number): Promise<Tag> =>
+  api.post<Tag>('/tag/', { name, commit_id: commitId }).then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
+   Merge & Rollback
+────────────────────────────────────────────────────────── */
+export const mergeBranches = (
+  sourceId: number,
+  targetId: number
+): Promise<{ message: string; merged_commits: string[] }> =>
+  api
+    .post<{ message: string; merged_commits: string[] }>(
+      `/merge/${sourceId}/${targetId}`
+    )
+    .then(res => res.data)
+
+export const rollbackBranch = (
+  branchId: number,
+  commitId: number
+): Promise<{ message: string }> =>
+  api.post<{ message: string }>(`/rollback/${branchId}/${commitId}`).then(res => res.data)
+
+/* ──────────────────────────────────────────────────────────
    Stripe Config
 ────────────────────────────────────────────────────────── */
 export interface StripeConfig {
@@ -141,25 +217,4 @@ export interface StripeConfig {
 
 export const getStripeConfig = (): Promise<StripeConfig> =>
   api.get<StripeConfig>('/stripe/config')
-    .then(res => res.data)
-
-/* ──────────────────────────────────────────────────────────
-   Helper Functions
-────────────────────────────────────────────────────────── */
-export const isAuthenticated = (): boolean => {
-  if (typeof window === 'undefined') return false
-  return !!localStorage.getItem('auth_token')
-}
-
-export const logout = (): void => {
-  if (typeof window === 'undefined') return
-  localStorage.removeItem('auth_token')
-  localStorage.removeItem('user_email')
-}
-
-/* ──────────────────────────────────────────────────────────
-   Debug Functions (remove in production)
-────────────────────────────────────────────────────────── */
-export const testStripeConfig = (): Promise<any> =>
-  api.get('/subscription/test-stripe')
     .then(res => res.data)
