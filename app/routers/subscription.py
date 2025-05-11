@@ -3,12 +3,13 @@ import logging
 from datetime import datetime, timedelta
 
 import stripe
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User
+from app.routers.auth import get_current_user
 
 # ─── Setup ────────────────────────────────────────────────
 logger = logging.getLogger("subscription")
@@ -23,6 +24,7 @@ if not logger.handlers:
 # ─── Stripe Config ──────────────────────────────────────────
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "").strip()
 STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "").strip()
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
 
 if not STRIPE_SECRET_KEY:
     raise RuntimeError("STRIPE_SECRET_KEY is required")
@@ -30,6 +32,7 @@ if not STRIPE_PRICE_ID:
     raise RuntimeError("STRIPE_PRICE_ID is required")
 
 stripe.api_key = STRIPE_SECRET_KEY
+logger.info(f"Configured Stripe with key starting: {STRIPE_SECRET_KEY[:7]}...")
 
 # ─── Models ───────────────────────────────────────────────
 
@@ -45,6 +48,9 @@ class SubscriptionResponse(BaseModel):
     requires_action: bool = False
     payment_intent_client_secret: str | None = None
 
+    class Config:
+        from_attributes = True
+
 # ─── Router ───────────────────────────────────────────────
 
 router = APIRouter()
@@ -52,6 +58,7 @@ router = APIRouter()
 @router.get("/", response_model=SubscriptionResponse)
 async def get_subscription_status(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Get current subscription status"""
     try:
@@ -168,7 +175,8 @@ async def create_subscription(
             logger.info(f"Subscription created: {subscription.id}")
 
             # Check if additional authentication is needed
-            if subscription.latest_invoice.payment_intent.status == 'requires_action':
+            if hasattr(subscription.latest_invoice, 'payment_intent') and \
+               subscription.latest_invoice.payment_intent.status == 'requires_action':
                 logger.info("Additional authentication required")
                 return SubscriptionResponse(
                     subscribed=False,
@@ -214,13 +222,16 @@ async def create_subscription(
         )
 
 @router.post("/webhook")
-async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db)):
+async def handle_stripe_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
     """Handle Stripe webhook events"""
     try:
         event = stripe.Webhook.construct_event(
             payload=await request.body(),
             sig_header=request.headers.get('stripe-signature'),
-            secret=os.getenv('STRIPE_WEBHOOK_SECRET')
+            secret=STRIPE_WEBHOOK_SECRET
         )
         
         logger.info(f"Processing webhook event: {event.type}")
