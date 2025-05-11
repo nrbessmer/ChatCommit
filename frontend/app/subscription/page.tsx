@@ -11,7 +11,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { api, createSubscription, getStripeConfig } from '@/lib/api'
+import { api, createSubscription } from '@/lib/api'
 
 interface StripeConfig {
   publishableKey: string
@@ -132,7 +132,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       </button>
 
       {message && (
-        <div 
+        <div
           className={`mt-4 p-3 rounded text-sm ${
             message.startsWith('✅')
               ? 'bg-green-100 text-green-800'
@@ -167,8 +167,9 @@ export default function SubscriptionPage() {
       return
     }
 
-    getStripeConfig()
-      .then((config) => {
+    api.get<StripeConfig>('/stripe/config')
+      .then((res) => {
+        const config = res.data
         setPriceId(config.priceId)
         setStripePromise(loadStripe(config.publishableKey))
       })
