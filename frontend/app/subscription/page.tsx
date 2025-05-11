@@ -69,9 +69,30 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       
       // Cast to our extended type to handle potential additional fields
       const response = await createSubscription({
+        email, // Add the email field
         paymentMethodId: paymentMethod.id,
         planId: priceId
       }) as unknown as ExtendedSubscriptionResponse
+
+      // If requires_action is true, handle the 3D Secure authentication
+      if (response.requires_action && response.payment_intent_client_secret) {
+        setMessage('Additional authentication required...')
+        const { error } = await stripe.confirmCardPayment(
+          response.payment_intent_client_secret
+        )
+        
+        if (error) {
+          throw new Error(error.message)
+        }
+        
+        // After confirmation, check subscription status again
+        const checkResponse = await api.get('/subscription/')
+        if (checkResponse.data.subscribed) {
+          setMessage(`✅ Subscription activated! Valid until ${new Date(checkResponse.data.date_subscription_expires).toLocaleDateString()}`)
+          setTimeout(() => router.push('/dashboard'), 2000)
+          return
+        }
+      }
 
       // If subscription is successful
       if (response.subscribed) {

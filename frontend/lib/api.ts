@@ -137,9 +137,11 @@ export const sendExtensionInstructions = (): Promise<void> =>
 /* ──────────────────────────────────────────────────────────
    Subscription
 ────────────────────────────────────────────────────────── */
+// This should be updated in lib/api.ts
 export interface SubscriptionPayload {
-  paymentMethodId: string
-  planId: string
+  email: string;      // <-- Add this
+  paymentMethodId: string;
+  planId: string;
 }
 
 export interface SubscriptionResponse {
