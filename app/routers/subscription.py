@@ -153,6 +153,10 @@ async def create_subscription(
             )
             
             logger.info(f"Created subscription: {subscription.id}")
+            logger.info(f"Subscription details: id={subscription.id}, status={subscription.status}")
+            
+            # Debug - log all available keys
+            logger.info(f"Subscription fields: {dir(subscription)}")
 
             # If we have an invoice, retrieve it separately with payment_intent expanded
             payment_intent_client_secret = None
@@ -184,9 +188,23 @@ async def create_subscription(
                     payment_intent_client_secret=payment_intent_client_secret
                 )
 
-            # Set subscription dates
+            # Set subscription dates with proper error handling
             now = datetime.utcnow()
-            expires = datetime.utcfromtimestamp(subscription.current_period_end)
+            
+            # Handle current_period_end safely
+            try:
+                if hasattr(subscription, 'current_period_end') and subscription.current_period_end:
+                    logger.info(f"Current period end: {subscription.current_period_end}")
+                    expires = datetime.utcfromtimestamp(subscription.current_period_end)
+                else:
+                    # Fallback - use 30 days from now
+                    logger.warning("No current_period_end found, using 30-day default")
+                    expires = now + timedelta(days=30)
+            except Exception as period_error:
+                logger.error(f"Error processing current_period_end: {str(period_error)}")
+                logger.error(f"Subscription object type: {type(subscription)}")
+                # Fallback - use 30 days from now
+                expires = now + timedelta(days=30)
 
             # Update user record
             is_active = subscription.status == 'active'
@@ -242,9 +260,19 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
             
             if user:
                 user.subscribed = subscription.status == 'active'
-                user.date_subscription_expires = datetime.utcfromtimestamp(
-                    subscription.current_period_end
-                )
+                # Safely handle current_period_end here too
+                try:
+                    if hasattr(subscription, 'current_period_end') and subscription.current_period_end:
+                        user.date_subscription_expires = datetime.utcfromtimestamp(
+                            subscription.current_period_end
+                        )
+                    else:
+                        # No expiration date available, use 30 days from now
+                        user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
+                except Exception as e:
+                    logger.error(f"Error handling current_period_end in webhook: {str(e)}")
+                    user.date_subscription_expires = datetime.utcnow() + timedelta(days=30)
+                
                 db.commit()
                 logger.info(f"Updated subscription status for {user.email}")
 
