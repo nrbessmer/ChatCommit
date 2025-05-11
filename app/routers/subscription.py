@@ -1,107 +1,121 @@
+# app/routers/subscription.py
+
 import os
 import logging
 from datetime import datetime
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 
 from ..database import get_db
 from ..models import User
-from app.routers.auth import create_access_token
+from app.routers.auth import get_current_user
 
-# logging setup
+# ─── Logging ─────────────────────────────────────────────────
 logger = logging.getLogger("subscription")
 logger.setLevel(logging.INFO)
 
-# load & validate env vars
+# ─── Stripe config ────────────────────────────────────────────
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID")
+STRIPE_PRICE_ID   = os.getenv("STRIPE_PRICE_ID")
 
 if not STRIPE_SECRET_KEY or not STRIPE_PRICE_ID:
-    raise RuntimeError("Missing Stripe configuration in environment")
+    raise RuntimeError("Missing STRIPE_SECRET_KEY or STRIPE_PRICE_ID in env")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-router = APIRouter(tags=["subscription"])
-
+# ─── Request & Response Schemas ───────────────────────────────
 class SubscriptionRequest(BaseModel):
-    email: EmailStr
-    password: str
     paymentMethodId: str
-    planId: str
+    planId:           str
 
 class SubscriptionResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
     subscribed: bool
     date_subscribed: datetime
     date_subscription_expires: datetime
+
+# ─── Router ───────────────────────────────────────────────────
+router = APIRouter(
+    prefix="/subscription",
+    tags=["subscription"],
+)
 
 @router.post(
     "/",
     response_model=SubscriptionResponse,
     status_code=status.HTTP_200_OK,
 )
-def subscribe_and_activate(
+def create_subscription(
     payload: SubscriptionRequest,
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    db: Session      = Depends(get_db),
 ):
-    logger.info(f"Subscription request for {payload.email}")
+    """
+    1) Ensure we have a Stripe Customer for this user
+    2) Attach the provided payment method
+    3) Create the subscription on Stripe
+    4) Persist subscription dates in your DB
+    5) Return the subscription info
+    """
+    user = current_user
+    logger.info(f"User {user.email} starting subscription flow")
 
-    # 1) authenticate existing user
-    user = db.query(User).filter(User.email == payload.email).first()
-    pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    if not user or not pwd_ctx.verify(payload.password, user.password_hash):
-        logger.warning("Invalid credentials for subscription")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-
-    # 2) ensure Stripe customer
+    # 1) Customer
     if not user.stripe_customer_id:
-        logger.info("Creating new Stripe customer")
         customer = stripe.Customer.create(
-            email=user.email, name=user.full_name
+            email=user.email,
+            name=user.full_name,
         )
         user.stripe_customer_id = customer.id
         db.commit()
     else:
         customer = stripe.Customer.retrieve(user.stripe_customer_id)
 
-    # 3) attach payment method and set default
-    stripe.PaymentMethod.attach(
-        payload.paymentMethodId,
-        customer=customer.id,
-    )
-    stripe.Customer.modify(
-        customer.id,
-        invoice_settings={"default_payment_method": payload.paymentMethodId},
-    )
+    # 2) Attach payment method
+    try:
+        stripe.PaymentMethod.attach(
+            payload.paymentMethodId,
+            customer=customer.id,
+        )
+        stripe.Customer.modify(
+            customer.id,
+            invoice_settings={"default_payment_method": payload.paymentMethodId},
+        )
+    except stripe.error.StripeError as e:
+        logger.error("PaymentMethod attach failed", exc_info=True)
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=e.user_message or str(e)
+        )
 
-    # 4) create subscription
-    subscription = stripe.Subscription.create(
-        customer=customer.id,
-        items=[{"price": payload.planId}],
-        expand=["latest_invoice.payment_intent"],
-    )
-    now = datetime.utcfromtimestamp(subscription.created)
+    # 3) Create subscription
+    try:
+        subscription = stripe.Subscription.create(
+            customer=customer.id,
+            items=[{"price": payload.planId}],
+            expand=["latest_invoice.payment_intent"],
+        )
+    except stripe.error.StripeError as e:
+        logger.error("Subscription creation failed", exc_info=True)
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=e.user_message or str(e)
+        )
+
+    # 4) Persist to your DB
+    started = datetime.utcfromtimestamp(subscription.created)
     expires = datetime.utcfromtimestamp(subscription.current_period_end)
 
-    # 5) update local DB and clear activation token
-    user.subscribed = True
-    user.date_subscribed = now
-    user.date_subscription_expires = expires
-    user.token = ""
+    user.subscribed                  = True
+    user.date_subscribed             = started
+    user.date_subscription_expires   = expires
     db.commit()
 
-    # 6) issue fresh JWT
-    token = create_access_token({"sub": str(user.id)})
-    logger.info(f"User {user.email} subscribed & activated")
-
+    logger.info(f"User {user.email} subscribed until {expires.isoformat()}")
     return SubscriptionResponse(
-        access_token=token,
         subscribed=True,
-        date_subscribed=now,
+        date_subscribed=started,
         date_subscription_expires=expires,
     )
