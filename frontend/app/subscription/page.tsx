@@ -11,20 +11,17 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { api, createSubscription } from '@/lib/api'
+import { api, createSubscription, SubscriptionResponse } from '@/lib/api'
 
 interface StripeConfig {
   publishableKey: string
   priceId: string
 }
 
-// Extend the SubscriptionResponse type to match what your backend might return
-interface ExtendedSubscriptionResponse {
-  subscribed: boolean
-  date_subscribed: string
-  date_subscription_expires: string
-  payment_intent_client_secret?: string
-  requires_action?: boolean
+// Extend the SubscriptionResponse type to handle additional fields from backend
+interface ExtendedSubscriptionResponse extends SubscriptionResponse {
+  requires_action?: boolean;
+  payment_intent_client_secret?: string | null;
 }
 
 function SubscriptionForm({ priceId }: { priceId: string }) {
@@ -67,14 +64,14 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
 
       setMessage('Setting up subscription...')
       
-      // Cast to our extended type to handle potential additional fields
+      // Include email in the request - this is critical!
       const response = await createSubscription({
-        email, // Add the email field
+        email,
         paymentMethodId: paymentMethod.id,
         planId: priceId
-      }) as unknown as ExtendedSubscriptionResponse
+      }) as ExtendedSubscriptionResponse
 
-      // If requires_action is true, handle the 3D Secure authentication
+      // Handle 3D Secure if needed
       if (response.requires_action && response.payment_intent_client_secret) {
         setMessage('Additional authentication required...')
         const { error } = await stripe.confirmCardPayment(
@@ -85,8 +82,8 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
           throw new Error(error.message)
         }
         
-        // After confirmation, check subscription status again
-        const checkResponse = await api.get('/subscription/')
+        // Check subscription status again
+        const checkResponse = await api.get<ExtendedSubscriptionResponse>('/subscription/')
         if (checkResponse.data.subscribed) {
           setMessage(`✅ Subscription activated! Valid until ${new Date(checkResponse.data.date_subscription_expires).toLocaleDateString()}`)
           setTimeout(() => router.push('/dashboard'), 2000)
@@ -104,6 +101,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
 
     } catch (e: any) {
       console.error('Subscription error:', e)
+      console.error('Response data:', e.response?.data)
       
       // Handle the specific payment_intent expansion error
       if (e.response?.data?.detail?.includes("payment_intent")) {
