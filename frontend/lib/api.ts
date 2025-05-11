@@ -1,4 +1,3 @@
-// frontend/lib/api.ts
 // ------------------------------------------------------------
 // Central place for every HTTP call to the FastAPI backend.
 // Every helper returns the _data_ payload directly (not AxiosResponse).
@@ -83,11 +82,24 @@ export interface UserProfile {
   date_subscription_expires?: string
 }
 
+export interface RegisterResponse extends UserProfile {
+  access_token: string
+  token_type: string
+}
+
 // Register a new user
 export const registerUser = (
   data: UserRegisterPayload
-): Promise<UserProfile> =>
-  api.post<UserProfile>('/auth/users/register', data).then(res => res.data)
+): Promise<RegisterResponse> =>
+  api.post<RegisterResponse>('/auth/users/register', data)
+    .then(res => {
+      // Store the token immediately
+      if (res.data.access_token) {
+        localStorage.setItem('auth_token', res.data.access_token)
+        localStorage.setItem('user_email', res.data.email)
+      }
+      return res.data
+    })
 
 // Activate account
 export const activateUser = (
@@ -139,18 +151,8 @@ export interface SubscriptionResponse {
 // Create or update subscription
 export const createSubscription = (
   data: SubscriptionPayload
-): Promise<SubscriptionResponse> => {
-  const token =
-    typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
-
-  return api
-    .post<SubscriptionResponse>(
-      '/subscription/',
-      data,
-      token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
-    )
-    .then(res => res.data)
-}
+): Promise<SubscriptionResponse> =>
+  api.post<SubscriptionResponse>('/subscription/', data).then(res => res.data)
 
 // Fetch current subscription status
 export const fetchSubscription = (): Promise<SubscriptionResponse> =>
@@ -189,12 +191,11 @@ export const createCommit = (payload: {
 /* ──────────────────────────────────────────────────────────
    Timeline
 ────────────────────────────────────────────────────────── */
-// Note the trailing slash on timeline to avoid redirects!
 export const fetchTimeline = (params?: {
   branch_id?: number
   tag?: string
-  start_date?: string // ISO‑8601
-  end_date?: string // ISO‑8601
+  start_date?: string
+  end_date?: string
 }): Promise<Commit[]> => api.get<Commit[]>('/timeline/', { params }).then(res => res.data)
 
 /* ──────────────────────────────────────────────────────────
@@ -214,7 +215,6 @@ export const createTag = (name: string, commitId: number): Promise<Tag> =>
 /* ──────────────────────────────────────────────────────────
    Merge & Rollback
 ────────────────────────────────────────────────────────── */
-// Merge source into target (path‑style)
 export const mergeBranches = (
   sourceId: number,
   targetId: number
@@ -225,7 +225,6 @@ export const mergeBranches = (
     )
     .then(res => res.data)
 
-// Roll back a branch
 export const rollbackBranch = (
   branchId: number,
   commitId: number

@@ -55,9 +55,25 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="User not found")
     return user
 
+# ─── Models ───────────────────────────────────────────────
+
+class RegisterResponse(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    company: str
+    address: str
+    subscribed: bool
+    access_token: str
+    token_type: str = "bearer"
+
+class UserLoginJSON(BaseModel):
+    email: EmailStr
+    password: str
+
 # ─── Registration ─────────────────────────────────────────
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 def register(user: UserRegister, db: Session = Depends(get_db)):
     if db.query(User).filter_by(email=user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -73,7 +89,20 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    return db_user
+
+    # Generate access token for immediate use
+    access_token = create_access_token({"sub": db_user.email})
+
+    return {
+        "id": db_user.id,
+        "full_name": db_user.full_name,
+        "email": db_user.email,
+        "company": db_user.company,
+        "address": db_user.address,
+        "subscribed": db_user.subscribed,
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 # ─── OAuth2 Token Endpoint (form‑data) ─────────────────────
 
@@ -94,12 +123,6 @@ def login_for_access_token(
     
     access = create_access_token({"sub": user.email})
     return {"access_token": access, "token_type": "bearer"}
-
-# ─── JSON Login Model ──────────────────────────────────────
-
-class UserLoginJSON(BaseModel):
-    email: EmailStr
-    password: str
 
 # ─── JSON‑based /login endpoint ───────────────────────────
 
