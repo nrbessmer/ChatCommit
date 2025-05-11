@@ -11,12 +11,7 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js'
-import { api } from '@/lib/api'
-
-interface StripeConfig {
-  publishableKey: string
-  priceId: string
-}
+import { api, createSubscription, getStripeConfig } from '@/lib/api'
 
 interface SubscriptionFormProps {
   priceId: string
@@ -45,35 +40,52 @@ function SubscriptionForm({ priceId }: SubscriptionFormProps) {
         throw new Error('Card element not found')
       }
 
-      const { error, paymentMethod } = await stripe.createPaymentMethod({
+      // Create payment method
+      setMessage('Processing payment...')
+      const { error: pmError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card,
+        billing_details: {
+          email,
+        },
       })
 
-      if (error || !paymentMethod) {
-        throw new Error(error?.message ?? 'Failed to create payment method')
+      if (pmError || !paymentMethod) {
+        throw new Error(pmError?.message ?? 'Failed to create payment method')
       }
 
-      // Create subscription without requiring auth
-      const response = await api.post('/subscription/', {
+      // Create subscription using our typed API call
+      setMessage('Setting up subscription...')
+      const subscription = await createSubscription({
         email,
         paymentMethodId: paymentMethod.id,
-        planId: priceId,
+        planId: priceId
       })
 
-      setMessage(
-        `✅ Subscribed until ${new Date(
-          response.data.date_subscription_expires
-        ).toLocaleDateString()}`
-      )
+      // Handle response
+      if (subscription.requires_action && subscription.payment_intent_client_secret) {
+        setMessage('Additional authentication required...')
+        const { error } = await stripe.confirmCardPayment(
+          subscription.payment_intent_client_secret
+        )
+        if (error) {
+          throw new Error(error.message)
+        }
+      }
 
-      // Redirect to login after successful subscription
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
+      if (subscription.subscribed) {
+        const expiryDate = new Date(subscription.date_subscription_expires!).toLocaleDateString()
+        setMessage(`✅ Subscribed successfully! Valid until ${expiryDate}`)
+        setTimeout(() => router.push('/dashboard'), 2000)
+      } else {
+        setMessage('❌ Subscription not activated. Please try again.')
+      }
 
     } catch (e: any) {
-      setMessage('❌ ' + (e.response?.data?.detail || e.message || 'Subscription failed'))
+      console.error('Subscription error:', e)
+      setMessage(
+        '❌ ' + (e.response?.data?.detail || e.message || 'Subscription failed')
+      )
     } finally {
       setLoading(false)
     }
@@ -86,31 +98,31 @@ function SubscriptionForm({ priceId }: SubscriptionFormProps) {
       <div className="space-y-4 mb-4">
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black">
           <label className="block mb-1 text-gray-700">Card number</label>
-          <CardNumberElement 
-            options={{ 
+          <CardNumberElement
+            options={{
               style: { base: { fontSize: '16px' } }
-            }} 
+            }}
           />
         </div>
 
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black flex gap-4">
           <div className="flex-1">
             <label className="block mb-1 text-gray-700">Expiry</label>
-            <CardExpiryElement 
-              options={{ style: { base: { fontSize: '16px' } } }} 
+            <CardExpiryElement
+              options={{ style: { base: { fontSize: '16px' } } }}
             />
           </div>
           <div className="flex-1">
             <label className="block mb-1 text-gray-700">CVC</label>
-            <CardCvcElement 
-              options={{ style: { base: { fontSize: '16px' } } }} 
+            <CardCvcElement
+              options={{ style: { base: { fontSize: '16px' } } }}
             />
           </div>
         </div>
       </div>
 
       <button
-        disabled={loading}
+        disabled={loading || !stripe}
         onClick={handleSubscribe}
         className="w-full py-2 bg-green-500 hover:bg-green-600 rounded disabled:opacity-50 font-semibold"
       >
@@ -118,8 +130,23 @@ function SubscriptionForm({ priceId }: SubscriptionFormProps) {
       </button>
 
       {message && (
-        <p className="mt-4 text-sm text-yellow-300 whitespace-pre-wrap">{message}</p>
+        <div 
+          className={`mt-4 p-3 rounded text-sm ${
+            message.startsWith('✅')
+              ? 'bg-green-100 text-green-800'
+              : message.startsWith('❌')
+              ? 'bg-red-100 text-red-800'
+              : 'bg-blue-100 text-blue-800'
+          }`}
+        >
+          {message}
+        </div>
       )}
+
+      <footer className="mt-8 text-center text-sm text-gray-500">
+        <p>© 2025 Tully EDM Vibe</p>
+        <p>info@tullyedmvibe.com</p>
+      </footer>
     </div>
   )
 }
@@ -129,6 +156,7 @@ export default function SubscriptionPage() {
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
   const [priceId, setPriceId] = useState<string>('')
   const [checking, setChecking] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const email = localStorage.getItem('user_email')
@@ -137,18 +165,29 @@ export default function SubscriptionPage() {
       return
     }
 
-    // Load Stripe configuration
-    api.get<StripeConfig>('/stripe/config')
-      .then(res => {
-        setPriceId(res.data.priceId)
-        setStripePromise(loadStripe(res.data.publishableKey))
+    // Load Stripe configuration using our typed API call
+    getStripeConfig()
+      .then((config) => {
+        setPriceId(config.priceId)
+        setStripePromise(loadStripe(config.publishableKey))
       })
-      .catch(console.error)
+      .catch((error) => {
+        console.error('Failed to load Stripe config:', error)
+        setError('Failed to load payment configuration')
+      })
       .finally(() => setChecking(false))
   }, [router])
 
   if (checking) {
     return <div className="mt-20 text-center">Loading…</div>
+  }
+
+  if (error) {
+    return (
+      <div className="mt-20 text-center text-red-600">
+        {error}
+      </div>
+    )
   }
 
   if (!stripePromise) {
