@@ -6,11 +6,11 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "storage",
-    "https://chatcommit.fly.dev/*"
+    "storage"
   ],
   "host_permissions": [
-    "https://chatcommit.fly.dev/*"
+    "https://chatcommit.fly.dev/*",
+    "https://chat-commit.vercel.app/*"
   ],
   "action": {
     "default_popup": "popup.html",
