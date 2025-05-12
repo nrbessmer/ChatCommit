@@ -1,4 +1,3 @@
-// popup.js
 console.log('[popup.js] loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const loginStatus   = document.getElementById('login-status');
 
   // Storage & endpoints
-  // 🔑 Use the same key your backend expects
   const STORAGE_KEY_TOKEN = 'auth_token';
   const API_BASE_DEFAULT  = 'https://chatcommit.fly.dev';
   const VERCEL_BASE       = 'https://chat-commit.vercel.app';
@@ -24,8 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
   // ─── LOGIN ─────────────────────────────────────────
-  const loginBtn = document.getElementById('login-submit');
-  loginBtn?.addEventListener('click', async () => {
+  document.getElementById('login-submit')?.addEventListener('click', async () => {
     loginStatus.textContent = '⏳ Logging in…';
     const email    = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
@@ -42,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loginStatus.textContent = '✅ Logged in';
       loginPanel.style.display = 'none';
       mainPanel.style.display  = 'block';
-      // initialize after successful login
+      // init
       await populateBranchSelect();
       await scrapeChat();
     } catch (e) {
@@ -52,28 +49,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Auto‑login if token present
-  const existingToken = localStorage.getItem(STORAGE_KEY_TOKEN);
-  console.log('[startup] existing token →', existingToken);
-  if (existingToken) {
+  if (localStorage.getItem(STORAGE_KEY_TOKEN)) {
     loginPanel.style.display = 'none';
     mainPanel.style.display  = 'block';
-    // initialize on auto‑login
     populateBranchSelect();
     scrapeChat();
   }
 
-  // ─── MAIN APP ────────────────────────────────────
-  function initApp() {
-    // not used; we initialize on login directly
-  }
-
   // ─── FETCH & POPULATE BRANCHES ─────────────────
   async function fetchBranches(base) {
-    const token = localStorage.getItem(STORAGE_KEY_TOKEN);
-    console.log('[fetchBranches] using token →', token);
-    const r = await fetch(`${base}/branch/`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    // token injection handled in background.js
+    const r = await fetch(`${base}/branch/`);
     if (!r.ok) throw r;
     return r.json();
   }
@@ -81,19 +67,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const base = await getBackend();
     try {
       const branches = await fetchBranches(base);
-      const branchSelect = document.getElementById('branch-select');
-      branchSelect.innerHTML = '';
+      const select = document.getElementById('branch-select');
+      select.innerHTML = '';
       if (!branches.length) {
         const o = document.createElement('option');
         o.textContent = 'No branches available';
         o.disabled = true;
-        branchSelect.append(o);
+        select.append(o);
       } else {
         branches.forEach(b => {
           const o = document.createElement('option');
           o.value = b.id;
           o.textContent = `${b.name} (#${b.id})`;
-          branchSelect.append(o);
+          select.append(o);
         });
       }
     } catch (e) {
@@ -102,18 +88,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ─── NAVIGATION BUTTONS ───────────────────────
-  document.getElementById('view-branches')?.addEventListener('click', () => {
-    chrome.tabs.create({ url: `${VERCEL_BASE}/branches` });
-  });
-  document.getElementById('rollback-btn')?.addEventListener('click', () => {
-    chrome.tabs.create({ url: `${VERCEL_BASE}/rollback` });
-  });
-  document.getElementById('timeline-btn')?.addEventListener('click', () => {
-    chrome.tabs.create({ url: `${VERCEL_BASE}/timeline` });
-  });
+  // ─── NAVIGATION ────────────────────────────────
+  document.getElementById('view-branches')?.addEventListener('click', () =>
+    chrome.tabs.create({ url: `${VERCEL_BASE}/branches` })
+  );
+  document.getElementById('rollback-btn')?.addEventListener('click', () =>
+    chrome.tabs.create({ url: `${VERCEL_BASE}/rollback` })
+  );
+  document.getElementById('timeline-btn')?.addEventListener('click', () =>
+    chrome.tabs.create({ url: `${VERCEL_BASE}/timeline` })
+  );
 
-  // ─── REFRESH & SCRAPE CHAT ────────────────────
+  // ─── SCRAPE CHAT ───────────────────────────────
   async function scrapeChat() {
     try {
       const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
@@ -130,17 +116,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
       lastScrapeData = result;
-      const contextTable = document.getElementById('context-table');
-      contextTable.innerHTML = '';
+      const table = document.getElementById('context-table');
+      table.innerHTML = '';
       result.messages.forEach(({ role, text }) => {
         const tr = document.createElement('tr');
         tr.className = role === 'User' ? 'user-row' : 'ai-row';
-        const tdRole = document.createElement('td');
-        tdRole.textContent = role;
-        const tdText = document.createElement('td');
-        tdText.textContent = text;
-        tr.append(tdRole, tdText);
-        contextTable.appendChild(tr);
+        tr.innerHTML = `<td>${role}</td><td>${text}</td>`;
+        table.appendChild(tr);
       });
       statusMsg.textContent = '✅ Chat scraped';
     } catch (e) {
@@ -150,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   document.getElementById('refresh-chat')?.addEventListener('click', scrapeChat);
 
-  // ─── COPY PRETTY CONTEXT ──────────────────────
+  // ─── COPY CONTEXT ──────────────────────────────
   document.getElementById('copy-context')?.addEventListener('click', () => {
     let out = 'Role\tMessage\n';
     document.querySelectorAll('#context-table tr').forEach(tr => {
@@ -161,28 +143,24 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(() => statusMsg.textContent = '❌ Copy failed');
   });
 
-  // ─── COMMIT ───────────────────────────
+  // ─── COMMIT ───────────────────────────────────
   document.getElementById('commit-btn')?.addEventListener('click', async () => {
-    const base           = await getBackend();
-    const commit_message = document.getElementById('message-input').value.trim();
-    const ctx            = lastScrapeData;
-    const branch_id      = parseInt(document.getElementById('branch-select').value, 10);
-    const tag            = document.getElementById('tag-input').value.trim();
-    if (!commit_message || !ctx?.messages?.length || !branch_id) {
+    const base    = await getBackend();
+    const message = document.getElementById('message-input').value.trim();
+    const ctx     = lastScrapeData;
+    const branch  = parseInt(document.getElementById('branch-select').value, 10);
+    const tag     = document.getElementById('tag-input').value.trim();
+    if (!message || !ctx?.messages?.length || !branch) {
       return statusMsg.textContent = '❌ Missing commit data';
     }
     try {
-      const token = localStorage.getItem(STORAGE_KEY_TOKEN);
-      const r = await fetch(`${base}/commit/`, {
+      const r    = await fetch(`${base}/commit/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          commit_message,
+          commit_message: message,
           conversation_context: { messages: ctx.messages.map(m => `${m.role}: ${m.text}`) },
-          branch_id
+          branch_id: branch
         })
       });
       const data = await r.json();
@@ -191,10 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tag) {
         const tRes = await fetch(`${base}/tag/`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: tag, commit_id: data.id })
         });
         msg += tRes.ok ? ' + Tag added' : ' + Tag failed';
@@ -212,13 +187,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!name) return;
     const base = await getBackend();
     try {
-      const token = localStorage.getItem(STORAGE_KEY_TOKEN);
       const r = await fetch(`${base}/branch/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name })
       });
       if (!r.ok) throw r;
@@ -230,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ─── MERGE FLOW ──────────────────────────────
+  // ─── MERGE PANEL ─────────────────────────────
   document.getElementById('merge-btn')?.addEventListener('click', async () => {
     mainPanel.style.display  = 'none';
     mergePanel.style.display = 'block';
@@ -238,9 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const base = await getBackend();
     try {
       const branches = await fetchBranches(base);
-      const srcSel = document.getElementById('merge-source');
-      const tgtSel = document.getElementById('merge-target');
-      [srcSel, tgtSel].forEach(sel => {
+      ['merge-source','merge-target'].forEach(id => {
+        const sel = document.getElementById(id);
         sel.innerHTML = '<option value="">Select branch</option>';
         branches.forEach(b => {
           const o = document.createElement('option');
@@ -261,13 +231,9 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('merge-status').textContent = '❌ Select two different branches';
       return;
     }
-    const base  = await getBackend();
-    const token = localStorage.getItem(STORAGE_KEY_TOKEN);
+    const base = await getBackend();
     try {
-      const r = await fetch(`${base}/merge/${src}/${tgt}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const r    = await fetch(`${base}/merge/${src}/${tgt}`, { method: 'POST' });
       const data = await r.json();
       document.getElementById('merge-status').textContent = r.ok
         ? `✅ ${data.message}`
