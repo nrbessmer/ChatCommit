@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await chrome.storage.local.remove(STORAGE_KEY_TOKEN);
   }
 
+  // Backend URL helper
   const getBackend = () =>
     new Promise(res =>
       chrome.storage.local.get('repoUrl', o => res(o.repoUrl || API_BASE_DEFAULT))
@@ -40,27 +41,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const email    = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
     try {
-      const r = await fetch(`${API_BASE_DEFAULT}/auth/users/login`, {
+      const resp = await fetch(`${API_BASE_DEFAULT}/auth/users/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       });
-      if (!r.ok) throw r;
-      const { access_token } = await r.json();
-      console.log('[login] got token →', access_token);
+      if (!resp.ok) throw resp;
+      const { access_token } = await resp.json();
       await setToken(access_token);
       loginStatus.textContent = '✅ Logged in';
       loginPanel.style.display = 'none';
       mainPanel.style.display  = 'block';
       await populateBranchSelect();
       await scrapeChat();
-    } catch (e) {
-      console.error('Login error', e);
+    } catch (err) {
+      console.error('Login error', err);
       loginStatus.textContent = '❌ Login failed';
     }
   });
 
-  // Auto‑login
+  // ─── AUTO‑LOGIN ───────────────────────────────────
   chrome.storage.local.get(STORAGE_KEY_TOKEN, async ({ auth_token }) => {
     if (auth_token) {
       console.log('[startup] existing token →', auth_token);
@@ -105,26 +105,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ─── OPEN A VERCEL PAGE + INJECT TOKEN ─────────────────
+  // ─── OPEN VERCEL + INJECT TOKEN → RELOAD ─────────
   async function openWithToken(path) {
-    const token = await getToken();
-    chrome.tabs.create({ url: `${VERCEL_BASE}${path}` }, (tab) => {
-      const tabId = tab.id;
-      function onUpdated(updatedId, changeInfo) {
-        if (updatedId === tabId && changeInfo.status === 'complete') {
-          chrome.tabs.onUpdated.removeListener(onUpdated);
-          chrome.scripting.executeScript({
-            target: { tabId },
-            func: (tkn) => {
-              localStorage.setItem('auth_token', tkn);
-            },
-            args: [token]
-          });
-        }
-      }
-      chrome.tabs.onUpdated.addListener(onUpdated);
-    });
-  }
+  const token = await getToken();
+  // include it in the fragment so injectToken.js picks it up
+  const url = `${VERCEL_BASE}${path}#token=${encodeURIComponent(token)}`;
+  chrome.tabs.create({ url });
+}
+
 
   document.getElementById('view-branches')?.addEventListener('click', () => {
     openWithToken('/branches');
@@ -139,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── SCRAPE CHAT ──────────────────────────────────
   async function scrapeChat() {
     try {
-      const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       const [{ result }] = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
@@ -221,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusMsg.textContent = out;
     } catch (err) {
       console.error('Commit error', err);
-      statusMsg.textContent = `❌ Commit failed`;
+      statusMsg.textContent = '❌ Commit failed';
     }
   });
 

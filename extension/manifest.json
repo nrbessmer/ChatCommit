@@ -30,6 +30,11 @@
       "matches": ["*://chat.openai.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat-commit.vercel.app/*"],
+      "js": ["injectToken.js"],
+      "run_at": "document_start"
     }
   ],
   "options_page": "options.html",

@@ -52,11 +52,9 @@ def health():
 
 def initialize_default_branch():
     db: Session = SessionLocal()
-    # if branches table exists but is empty, insert your init commit + main branch
     if db.execute(text(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='branches'"
     )).first() and db.query(Branch).count() == 0:
-        # init commit
         commit_hash = hashlib.sha1(b"init").hexdigest()
         init_commit = Commit(
             commit_hash=commit_hash,
@@ -69,7 +67,6 @@ def initialize_default_branch():
         db.commit()
         db.refresh(init_commit)
 
-        # main branch
         main_branch = Branch(name="main", current_commit_id=init_commit.id)
         db.add(main_branch)
         db.commit()
@@ -91,13 +88,11 @@ def on_startup():
     except Exception as e:
         print(f"⚠️ Skipping default-branch init: {e}")
 
-
 # ─── MOUNT ROUTERS ─────────────────────────────────────────────────
 app.include_router(auth.router,         prefix="/auth/users", tags=["auth"])
 app.include_router(user.router,         prefix="/users",      tags=["user"])
 app.include_router(branch.router,       prefix="/branch",     tags=["branch"])
-app.include_router(commit.router,       prefix="/commit",     tags=["commit"])
-app.include_router(commit.router,       prefix="/commits",    tags=["commits"])  # if you really need both
+app.include_router(commit.router)  # <- FIXED: removed double prefix
 app.include_router(tag.router,          prefix="/tag",        tags=["tag"])
 app.include_router(merge.router,        prefix="/merge",      tags=["merge"])
 app.include_router(rollback.router,     prefix="/rollback",   tags=["rollback"])
