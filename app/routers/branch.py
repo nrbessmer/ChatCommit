@@ -10,8 +10,11 @@ from ..models import Branch, Commit, User
 from ..schemas import BranchCreate, BranchResponse, CommitResponse
 from ..routers.auth import get_current_user
 
-router = APIRouter(tags=["branches"])
-
+router = APIRouter(
+    prefix="/branch",
+    tags=["branches"],
+    dependencies=[Depends(get_current_user)],
+)
 
 @router.post(
     "/",
@@ -29,7 +32,7 @@ def create_branch(
             db.query(Commit)
               .filter(
                   Commit.id == branch_in.base_commit_id,
-                  Commit.owner_id == current_user.id
+                  Commit.owner_id == current_user.id,
               )
               .first()
         )
@@ -39,13 +42,12 @@ def create_branch(
     new_branch = Branch(
         name=branch_in.name,
         current_commit_id=branch_in.base_commit_id,
-        owner_id=current_user.id,          # assumes you’ve added owner_id to Branch model
+        owner_id=current_user.id,
     )
     db.add(new_branch)
     db.commit()
     db.refresh(new_branch)
     return new_branch
-
 
 @router.get(
     "/",
@@ -62,7 +64,6 @@ def list_branches(
           .all()
     )
 
-
 @router.get(
     "/{branch_id}",
     response_model=BranchResponse,
@@ -77,14 +78,13 @@ def get_branch(
         db.query(Branch)
           .filter(
               Branch.id == branch_id,
-              Branch.owner_id == current_user.id
+              Branch.owner_id == current_user.id,
           )
           .first()
     )
     if not br:
         raise HTTPException(status_code=404, detail="Branch not found")
     return br
-
 
 @router.get(
     "/{branch_id}/commits",
@@ -100,26 +100,24 @@ def get_commits_for_branch(
         db.query(Branch)
           .filter(
               Branch.id == branch_id,
-              Branch.owner_id == current_user.id
+              Branch.owner_id == current_user.id,
           )
           .first()
     )
     if not br:
         raise HTTPException(status_code=404, detail="Branch not found")
 
-    # all commits owned by the user on that branch
     q = (
         db.query(Commit)
           .filter(
               Commit.branch_id == branch_id,
-              Commit.owner_id == current_user.id
+              Commit.owner_id == current_user.id,
           )
     )
     if br.current_commit_id is not None:
         q = q.filter(Commit.id <= br.current_commit_id)
 
     return q.order_by(Commit.created_at.desc()).all()
-
 
 @router.get(
     "/{branch_id}/head",
@@ -135,7 +133,7 @@ def get_branch_head(
         db.query(Branch)
           .filter(
               Branch.id == branch_id,
-              Branch.owner_id == current_user.id
+              Branch.owner_id == current_user.id,
           )
           .first()
     )
@@ -146,7 +144,7 @@ def get_branch_head(
         db.query(Commit)
           .filter(
               Commit.id == br.current_commit_id,
-              Commit.owner_id == current_user.id
+              Commit.owner_id == current_user.id,
           )
           .first()
     )
