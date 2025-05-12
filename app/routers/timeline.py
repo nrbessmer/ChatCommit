@@ -11,7 +11,7 @@ from ..schemas import CommitResponse
 router = APIRouter()  # no prefix here
 
 @router.get(
-    "/timeline",
+    "/timeline/",
     response_model=List[CommitResponse],
     summary="Return commits filtered by branch, tag or date range",
 )
