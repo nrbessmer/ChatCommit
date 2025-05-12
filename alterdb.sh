@@ -19,17 +19,21 @@ except Exception as e:
 
 for db_path in DB_CANDIDATES:
     print(f"\n==== Inspecting {db_path} ====")
-    print(" • exists:", os.path.exists(db_path))
     if not os.path.exists(db_path):
+        print(" • exists: False")
         continue
+    print(" • exists: True")
     try:
         st = os.stat(db_path)
         print(" • stat:", f"mode={oct(st.st_mode)} size={st.st_size}")
     except Exception as e:
         print(" • stat error:", e)
+
     try:
         conn = sqlite3.connect(db_path)
         cur  = conn.cursor()
+
+        # list tables
         tables = [r[0] for r in cur.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
         ).fetchall()]
@@ -37,46 +41,53 @@ for db_path in DB_CANDIDATES:
             print("  (no tables)")
         else:
             for t in tables:
+                print(f"\n-- {t} schema --")
+                # print DDL
+                ddl = cur.execute(
+                    "SELECT sql FROM sqlite_master WHERE type='table' AND name = ?",
+                    (t,)
+                ).fetchone()
+                print("   ", ddl[0] if ddl else "(no DDL found)")
+
                 print(f"\n-- {t} (up to 5 rows) --")
                 for row in conn.execute(f"SELECT * FROM {t} LIMIT 5;"):
                     print("   ", row)
         conn.close()
     except Exception as e:
         print(" ❌ error opening/reading:", e)
+PY
 
-# Now perform the ALTER on the real DB
-REAL_DB = "/data/chatcommit.db"
-print(f"\n➤ Running schema update on {REAL_DB}…")
-if not os.path.exists(REAL_DB):
-    print(f"❌ {REAL_DB} not found, skipping ALTER.")
-    sys.exit(0)
+# Now perform ALTER on branches if needed
+echo -e "\n➤ Running schema update on /data/chatcommit.db…"
+# We’ll execute raw SQL via sqlite3 Python to ensure availability
+python3 << 'PY'
+import sqlite3, os, sys
 
-conn = sqlite3.connect(REAL_DB)
-cur = conn.cursor()
+db = "/data/chatcommit.db"
+if not os.path.exists(db):
+    print(f"❌ Database not found at {db}")
+    sys.exit(1)
 
-# 1) disable FK enforcement
-cur.execute("PRAGMA foreign_keys = OFF;")
-
-# 2) add owner_id to branches
-try:
-    cur.execute("ALTER TABLE branches ADD COLUMN owner_id INTEGER;")
+conn = sqlite3.connect(db)
+c = conn.cursor()
+# check if owner_id exists
+cols = [row[1] for row in c.execute("PRAGMA table_info(branches);").fetchall()]
+if "owner_id" in cols:
+    print("✅ branches.owner_id already exists, skipping ALTER.")
+else:
+    print("🔧 Adding owner_id column to branches…")
+    c.execute("PRAGMA foreign_keys = OFF;")
+    c.execute("BEGIN TRANSACTION;")
+    c.execute("ALTER TABLE branches ADD COLUMN owner_id INTEGER;")
+    c.execute("CREATE INDEX IF NOT EXISTS ix_branches_owner_id ON branches(owner_id);")
+    c.execute("PRAGMA foreign_keys = ON;")
+    c.execute("COMMIT;")
     print("✅ Added owner_id column to branches.")
-except sqlite3.OperationalError as e:
-    print("⚠️  ALTER skipped (probably already exists):", e)
 
-# 3) create an index
-cur.execute("CREATE INDEX IF NOT EXISTS ix_branches_owner_id ON branches(owner_id);")
-print("✅ Ensured ix_branches_owner_id exists.")
-
-# 4) re-enable FK enforcement
-cur.execute("PRAGMA foreign_keys = ON;")
-
-conn.commit()
 conn.close()
 print("✅ Schema update complete.")
 PY
 EOF
 
-echo "➤ Done. Don’t forget to restart your app:"
-echo "    fly apps restart $FLY_APP"
+echo "➤ Done."
 
