@@ -57,6 +57,25 @@
     <p id="status-message" class="message"></p>
   </div>
 
+  <!-- ───────── SETTINGS ───────── -->
+  <div class="container" id="settings-panel" style="display:none">
+    <h2 class="header">Settings</h2>
+
+    <label for="openai-key">OpenAI API Key</label>
+    <input type="text" id="openai-key" placeholder="sk-…" />
+
+    <label for="backend-url">Backend URL</label>
+    <input type="text" id="backend-url" placeholder="https://…" />
+
+    <label for="repo-hook">Repo Hook URL</label>
+    <input type="text" id="repo-hook" placeholder="https://…" />
+
+    <div class="button-group">
+      <button id="save-settings" class="btn primary small">Save</button>
+      <button id="back-btn" class="btn small">Back</button>
+    </div>
+  </div>
+
   <!-- ───────── MERGE ───────── -->
   <div class="container" id="merge-panel" style="display:none">
     <h2 class="header">Merge Branches</h2>
