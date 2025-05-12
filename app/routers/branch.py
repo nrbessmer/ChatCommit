@@ -11,7 +11,6 @@ from ..schemas import BranchCreate, BranchResponse, CommitResponse
 from ..routers.auth import get_current_user
 
 router = APIRouter(
-    prefix="/branch",
     tags=["branches"],
     dependencies=[Depends(get_current_user)],
 )
