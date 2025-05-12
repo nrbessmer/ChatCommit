@@ -31,36 +31,36 @@ class Commit(Base):
                               foreign_keys=[parent_commit_id],
                           )
 
-
 class Branch(Base):
     __tablename__ = "branches"
+    __table_args__ = (
+        # enforce one branch-name per user
+        UniqueConstraint("name", "owner_id", name="uq_branch_name_per_user"),
+    )
 
-    id                   = Column(Integer, primary_key=True, index=True)
-    name                 = Column(String, unique=True)
-    current_commit_id    = Column(Integer, ForeignKey("commits.id"))
+    id                  = Column(Integer, primary_key=True, index=True)
+    # drop 'unique=True' here so SQLAlchemy won't try to recreate a single‑col index
+    name                = Column(String, nullable=False)
+    current_commit_id   = Column(Integer, ForeignKey("commits.id"))
+    owner_id            = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    # ← NEW: track ownership
-    owner_id             = Column(Integer, ForeignKey("users.id"), nullable=False)
-
-    commits              = relationship(
+    commits             = relationship(
                               "Commit",
                               back_populates="branch",
-                              foreign_keys=[Commit.branch_id],
+                              foreign_keys="[Commit.branch_id]"
                           )
-    owner                = relationship("User", back_populates="branches")
-
+    owner               = relationship("User", back_populates="branches")
 
 class Tag(Base):
     __tablename__ = "tags"
-    __table_args__       = (UniqueConstraint('name', 'commit_id', name='_tag_commit_uc'),)
+    __table_args__  = (UniqueConstraint('name', 'commit_id', name='_tag_commit_uc'),)
 
-    id                   = Column(Integer, primary_key=True, index=True)
-    name                 = Column(String, nullable=False)
-    commit_id            = Column(Integer, ForeignKey("commits.id"), nullable=False)
-    created_at           = Column(DateTime(timezone=True), server_default=func.now())
+    id               = Column(Integer, primary_key=True, index=True)
+    name             = Column(String, nullable=False)
+    commit_id        = Column(Integer, ForeignKey("commits.id"), nullable=False)
+    created_at       = Column(DateTime(timezone=True), server_default=func.now())
 
-    commit               = relationship("Commit")
-
+    commit           = relationship("Commit")
 
 class User(Base):
     __tablename__ = "users"
@@ -75,7 +75,7 @@ class User(Base):
     subscribed                  = Column(Boolean, default=False)
     date_subscribed             = Column(DateTime(timezone=True), nullable=True)
     date_subscription_expires   = Column(DateTime(timezone=True), nullable=True)
+    stripe_customer_id          = Column(String, nullable=True)
 
     commits                     = relationship("Commit", back_populates="owner")
     branches                    = relationship("Branch", back_populates="owner")
-    stripe_customer_id          = Column(String, nullable=True)
