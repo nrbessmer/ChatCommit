@@ -11,27 +11,10 @@ from ..database import get_db
 from ..models import Commit, Branch, User
 from ..schemas import CommitCreate, CommitResponse
 from ..config import SECRET_KEY, ALGORITHM
-
+from ..models import Branch, Commit, User
+from ..routers.auth import get_current_user
 router = APIRouter(tags=["commits"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> User:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if not email:
-            raise ValueError()
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
-
 
 @router.get(
     "/",
