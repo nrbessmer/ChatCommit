@@ -4,17 +4,18 @@ from datetime import datetime, timezone
 import hashlib
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Commit, Branch, User
 from ..schemas import CommitCreate, CommitResponse
-from ..config import SECRET_KEY, ALGORITHM
-from ..models import Branch, Commit, User
 from ..routers.auth import get_current_user
-router = APIRouter(tags=["commits"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+router = APIRouter(
+    prefix="/commit",
+    tags=["commits"],
+    dependencies=[Depends(get_current_user)]
+)
 
 @router.get(
     "/",
@@ -32,7 +33,6 @@ def list_commits(
           .all()
     )
 
-
 @router.post(
     "/",
     response_model=CommitResponse,
@@ -48,22 +48,20 @@ def create_commit(
     commit_hash = hashlib.sha1(sha_input.encode()).hexdigest()
 
     if db.query(Commit).filter(Commit.commit_hash == commit_hash).first():
-        raise HTTPException(status_code=400, detail="Duplicate commit detected.")
+        raise HTTPException(400, "Duplicate commit detected.")
 
     parent_commit_id = None
     branch = None
     if commit_in.branch_id is not None:
         branch = db.get(Branch, commit_in.branch_id)
-        if not branch:
-            raise HTTPException(status_code=404, detail="Branch not found")
+        if not branch or branch.owner_id != current_user.id:
+            raise HTTPException(404, "Branch not found or not yours")
         parent_commit_id = branch.current_commit_id
-
-    ctx_dict = commit_in.conversation_context.dict()
 
     db_commit = Commit(
         commit_hash=commit_hash,
         commit_message=commit_in.commit_message,
-        conversation_context=ctx_dict,
+        conversation_context=commit_in.conversation_context.dict(),
         branch_id=commit_in.branch_id,
         parent_commit_id=parent_commit_id,
         owner_id=current_user.id,
@@ -78,7 +76,6 @@ def create_commit(
         db.commit()
 
     return db_commit
-
 
 @router.get(
     "/{commit_id}",
@@ -99,5 +96,5 @@ def get_commit(
           .first()
     )
     if not commit:
-        raise HTTPException(status_code=404, detail="Commit not found")
+        raise HTTPException(404, "Commit not found")
     return commit

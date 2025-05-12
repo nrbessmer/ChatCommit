@@ -1,4 +1,3 @@
-// frontend/app/register/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -105,6 +104,11 @@ export default function RegisterPage() {
           {loading ? 'Registering…' : 'Register'}
         </button>
       </form>
+
+      {/* Contact info for browser extension */}
+      <p className="mt-6 text-sm text-gray-400">
+        Contact: <a href="mailto:info@tullyedmvibe.com" className="underline">info@tullyedmvibe.com</a> for browser extension file and instructions
+      </p>
     </div>
   )
 }
