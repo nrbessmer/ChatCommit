@@ -76,14 +76,26 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ─── FETCH & POPULATE BRANCHES ────────────────────
-  async function fetchBranches(base) {
+  async function fetchBranches(base, retries = 3) {
     const token = await getToken();
-    console.log('[fetchBranches] fetching from', base, 'with token:', token);
-    const r = await fetch(`${base}/branch/`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!r.ok) throw await r.json();
-    return r.json();
+    console.log('[fetchBranches] using token:', token);
+    try {
+      const r = await fetch(`${base}/branch/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!r.ok) {
+        if (r.status === 401 && retries > 0) {
+          console.warn('⚠️  401 Unauthorized, retrying...');
+          await new Promise(res => setTimeout(res, 200));
+          return fetchBranches(base, retries - 1);
+        }
+        throw await r.json();
+      }
+      return r.json();
+    } catch (err) {
+      console.error('fetchBranches error:', err);
+      throw err;
+    }
   }
 
   async function populateBranchSelect() {
@@ -120,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('view-branches')?.addEventListener('click', () => openWithToken('/branches'));
   document.getElementById('rollback-btn')?.addEventListener('click', () => openWithToken('/rollback'));
-  document.getElementById('timeline-btn')?.addEventListener('click', () => openWithToken('/timeline/'));
+  document.getElementById('timeline-btn')?.addEventListener('click', () => openWithToken('/timeline'));
 
   // ─── SCRAPE CHAT ──────────────────────────────────
   async function scrapeChat() {

@@ -11,22 +11,26 @@ from ..models import Commit, Tag, User
 from ..schemas import CommitResponse
 from ..routers.auth import get_current_user
 
-router = APIRouter(tags=["timeline"])
+router = APIRouter(
+    prefix="/timeline",
+    tags=["timeline"],
+    dependencies=[Depends(get_current_user)]
+)
 
 
 @router.get(
-    "/timeline/",
+    "/",
     response_model=List[CommitResponse],
     summary="Return commits filtered by branch, tag or date range",
 )
 def get_timeline(
     *,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # ← enforce auth
-    branch_id: Optional[int]   = Query(None, description="Filter by branch id"),
-    tag:       Optional[str]   = Query(None, description="Filter by tag"),
+    current_user: User = Depends(get_current_user),
+    branch_id: Optional[int] = Query(None, description="Filter by branch id"),
+    tag: Optional[str] = Query(None, description="Filter by tag"),
     start_date: Optional[datetime] = Query(None, description="Start of date range"),
-    end_date:   Optional[datetime] = Query(None, description="End of date range"),
+    end_date: Optional[datetime] = Query(None, description="End of date range"),
 ) -> List[CommitResponse]:
     # 1) Only the current user’s commits
     query = db.query(Commit).filter(Commit.owner_id == current_user.id)

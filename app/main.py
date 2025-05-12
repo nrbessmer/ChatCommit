@@ -96,6 +96,6 @@ app.include_router(commit.router)  # <- FIXED: removed double prefix
 app.include_router(tag.router,          prefix="/tag",        tags=["tag"])
 app.include_router(merge.router,        prefix="/merge",      tags=["merge"])
 app.include_router(rollback.router,     prefix="/rollback",   tags=["rollback"])
-app.include_router(timeline.router,     prefix="/timeline/",   tags=["timeline"])
+app.include_router(timeline.router,     prefix="/timeline",   tags=["timeline"])
 app.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
 app.include_router(stripe.router,       prefix="/stripe",     tags=["stripe"])
