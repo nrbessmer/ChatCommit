@@ -1,363 +1,314 @@
 // popup.js
-console.log('[popup.js] loaded');
+console.log('[popup.js] loaded]');
 
-document.addEventListener("DOMContentLoaded", () => {
-  console.log('[popup.js] DOMContentLoaded');
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[popup] DOMContentLoaded');
 
-  // ───── SETUP PANELS ─────
-  const loginPanel    = document.getElementById("login-panel");
-  const mainPanel     = document.getElementById("main-panel");
-  const settingsPanel = document.getElementById("settings-panel");
-  const mergePanel    = document.getElementById("merge-panel");
-  const statusMsg     = document.getElementById("status-message");
-  const loginStatus   = document.getElementById("login-status");
+  // ───── PANELS & STATUS ─────
+  const loginPanel    = document.getElementById('login-panel');
+  const mainPanel     = document.getElementById('main-panel');
+  const settingsPanel = document.getElementById('settings-panel');
+  const mergePanel    = document.getElementById('merge-panel');
+  const statusMsg     = document.getElementById('status-message');
+  const loginStatus   = document.getElementById('login-status');
 
-  const STORAGE_KEY_TOKEN = "chatcommit_auth_token";
-  const API_BASE = "https://chatcommit.fly.dev";
+  // ───── STORAGE & API BASE ─────
+  const STORAGE_KEY_TOKEN = 'chatcommit_auth_token';
+  const API_BASE_DEFAULT  = 'https://chatcommit.fly.dev';
+  const getBackend = () => new Promise(res => chrome.storage.local.get('repoUrl', o => res(o.repoUrl || API_BASE_DEFAULT)));
 
-  console.log('[popup] checking for existing token');
+  // ───── AUTO-LOGIN CHECK ─────
   if (localStorage.getItem(STORAGE_KEY_TOKEN)) {
-    console.log('[popup] token found – skipping login');
-    loginPanel.style.display = "none";
-    mainPanel.style.display  = "block";
+    loginPanel.style.display = 'none';
+    mainPanel.style.display  = 'block';
     initApp();
   }
 
-  // ───── LOGIN LOGIC ─────
-  console.log('[popup] binding login handler');
-  const loginBtn = document.getElementById("login-submit");
-  console.log('[popup] loginBtn →', loginBtn);
-  loginBtn.type = "button";  // ensure it doesn’t submit any form
+  // ───── LOGIN HANDLER ─────
+  const loginBtn = document.getElementById('login-submit');
+  if (loginBtn) {
+    loginBtn.type = 'button';
+    loginBtn.addEventListener('click', async () => {
+      loginStatus.textContent = '⏳ Logging in…';
+      const email    = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      try {
+        const res = await fetch(`${API_BASE_DEFAULT}/auth/users/login`, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email, password})
+        });
+        if (!res.ok) throw new Error(`Login failed (${res.status})`);
+        const {access_token} = await res.json();
+        localStorage.setItem(STORAGE_KEY_TOKEN, access_token);
+        loginStatus.textContent = '✅ Success!';
+        loginPanel.style.display = 'none';
+        mainPanel.style.display  = 'block';
+        initApp();
+      } catch (err) {
+        console.error('[popup] login error', err);
+        loginStatus.textContent = '❌ Login failed';
+      }
+    });
+  }
 
-  loginBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    console.log('[popup] login button clicked');
-
-    const email    = document.getElementById("login-email").value.trim();
-    const password = document.getElementById("login-password").value;
-    loginStatus.textContent = "⏳ Logging in…";
-
-    try {
-      console.log('[popup] fetching', `${API_BASE}/auth/users/login`);
-      const res = await fetch(`${API_BASE}/auth/users/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      });
-      console.log('[popup] fetch returned', res.status);
-
-      if (!res.ok) throw new Error(`Login failed (${res.status})`);
-      const { access_token } = await res.json();
-      console.log('[popup] got token', access_token);
-      localStorage.setItem(STORAGE_KEY_TOKEN, access_token);
-
-      loginStatus.textContent = "✅ Success!";
-      loginPanel.style.display = "none";
-      mainPanel.style.display  = "block";
-      initApp();
-    } catch (err) {
-      console.error('[popup] Login error', err);
-      loginStatus.textContent = "❌ Login failed";
-    }
-  });
-
-  // ───── MAIN APP ─────
+  // ───── MAIN APP INITIALIZER ─────
   function initApp() {
     console.log('[popup] initApp start');
 
-    // UI elements
-    const refreshBtn      = document.getElementById("refresh-chat");
-    const branchSelect    = document.getElementById("branch-select");
-    const messageInput    = document.getElementById("message-input");
-    const contextArea     = document.getElementById("context-area");
-    const tagInput        = document.getElementById("tag-input");
-    const commitBtn       = document.getElementById("commit-btn");
-    const createBranchBtn = document.getElementById("create-branch");
-    const viewBranchesBtn = document.getElementById("view-branches");
-    const copyContextBtn  = document.getElementById("copy-context");
+    // UI ELEMENTS
+    const refreshBtn      = document.getElementById('refresh-chat');
+    const branchSelect    = document.getElementById('branch-select');
+    const messageInput    = document.getElementById('message-input');
+    const contextArea     = document.getElementById('context-area');
+    const tagInput        = document.getElementById('tag-input');
+    const commitBtn       = document.getElementById('commit-btn');
+    const createBranchBtn = document.getElementById('create-branch');
+    const viewBranchesBtn = document.getElementById('view-branches');
+    const copyContextBtn  = document.getElementById('copy-context');
 
-    const settingsBtn     = document.getElementById("settings-btn");
-    const saveSettingsBtn = document.getElementById("save-settings");
-    const backBtn         = document.getElementById("back-btn");
-    const openaiKeyField  = document.getElementById("openai-key");
-    const backendUrlField = document.getElementById("backend-url");
-    const repoHookField   = document.getElementById("repo-hook");
+    const settingsBtn     = document.getElementById('settings-btn');
+    const saveSettingsBtn = document.getElementById('save-settings');
+    const backBtn         = document.getElementById('back-btn');
+    const openaiKeyField  = document.getElementById('openai-key');
+    const backendUrlField = document.getElementById('backend-url');
+    const repoHookField   = document.getElementById('repo-hook');
 
-    const mergeBtn        = document.getElementById("merge-btn");
-    const mergeSource     = document.getElementById("merge-source");
-    const mergeTargetSel  = document.getElementById("merge-target");
-    const executeMerge    = document.getElementById("execute-merge");
-    const cancelMerge     = document.getElementById("cancel-merge");
-    const mergeStatus     = document.getElementById("merge-status");
+    const mergeBtn        = document.getElementById('merge-btn');
+    const mergeSource     = document.getElementById('merge-source');
+    const mergeTargetSel  = document.getElementById('merge-target');
+    const executeMerge    = document.getElementById('execute-merge');
+    const cancelMerge     = document.getElementById('cancel-merge');
+    const mergeStatus     = document.getElementById('merge-status');
 
-    const rollbackBtn     = document.getElementById("rollback-btn");
-    const timelineBtn     = document.getElementById("timeline-btn");
+    const rollbackBtn     = document.getElementById('rollback-btn');
+    const timelineBtn     = document.getElementById('timeline-btn');
 
-    const logoutBtn       = document.getElementById("logout-btn");
+    const logoutBtn       = document.getElementById('logout-btn');
 
-    // ─── LOGOUT ───
-    logoutBtn.onclick = () => {
-      console.log('[popup] logging out');
+    // ───── LOGOUT ─────
+    logoutBtn?.addEventListener('click', () => {
       localStorage.removeItem(STORAGE_KEY_TOKEN);
       chrome.storage.local.clear(() => {
-        loginPanel.style.display    = "block";
-        mainPanel.style.display     = "none";
-        settingsPanel.style.display = "none";
-        mergePanel.style.display    = "none";
-        loginStatus.textContent     = "🔒 Logged out";
+        loginPanel.style.display    = 'block';
+        mainPanel.style.display     = 'none';
+        settingsPanel.style.display = 'none';
+        mergePanel.style.display    = 'none';
+        loginStatus.textContent     = '🔒 Logged out';
       });
-    };
+    });
 
-    // ─── SETTINGS ───
-    function loadSettings() {
-      chrome.storage.local.get(
-        ["openai", "repoUrl", "repoHook"],
-        (res) => {
-          openaiKeyField.value   = res.openai   || "";
-          backendUrlField.value  = res.repoUrl  || API_BASE;
-          repoHookField.value    = res.repoHook || "";
-        }
-      );
-    }
-    saveSettingsBtn.onclick = () => {
+    // ───── SETTINGS ─────
+    saveSettingsBtn?.addEventListener('click', () => {
       chrome.storage.local.set({
         openai:   openaiKeyField.value.trim(),
         repoUrl:  backendUrlField.value.trim(),
         repoHook: repoHookField.value.trim()
       }, () => {
-        statusMsg.textContent       = "✅ Settings saved";
-        settingsPanel.style.display = "none";
-        mainPanel.style.display     = "block";
+        statusMsg.textContent = '✅ Settings saved';
+        settingsPanel.style.display = 'none';
+        mainPanel.style.display     = 'block';
       });
-    };
-    settingsBtn.onclick = () => {
-      mainPanel.style.display     = "none";
-      settingsPanel.style.display = "block";
-      loadSettings();
-    };
-    backBtn.onclick = () => {
-      settingsPanel.style.display = "none";
-      mainPanel.style.display     = "block";
-    };
+    });
+    settingsBtn?.addEventListener('click', () => {
+      mainPanel.style.display     = 'none';
+      settingsPanel.style.display = 'block';
+      chrome.storage.local.get(['openai','repoUrl','repoHook'], res => {
+        openaiKeyField.value   = res.openai   || '';
+        backendUrlField.value  = res.repoUrl  || API_BASE_DEFAULT;
+        repoHookField.value    = res.repoHook || '';
+      });
+    });
+    backBtn?.addEventListener('click', () => {
+      settingsPanel.style.display = 'none';
+      mainPanel.style.display     = 'block';
+    });
 
-    // ─── HELPERS ───
-    const getBackend = () =>
-      new Promise(res =>
-        chrome.storage.local.get("repoUrl", (o) => res(o.repoUrl || API_BASE))
-      );
-
-    const fetchBranches = async (base) => {
-      console.log('[popup] fetchBranches from', base + '/branch/');
-      const r = await fetch(`${base}/branch/`, {
+    // ───── FETCH & POPULATE BRANCHES ─────
+    async function fetchBranches(base) {
+      const res = await fetch(`${base}/branch/`, {
         headers: { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}` }
       });
-      console.log('[popup] fetchBranches status', r.status);
-      if (!r.ok) throw new Error("Branch API failed");
-      const data = await r.json();
-      console.log('[popup] branches:', data);
-      return data;
-    };
-
-    const populateSelect = async (base, selectEl, excludeId = null) => {
-      selectEl.innerHTML = "";
+      if (!res.ok) throw new Error(`Branches API failed (${res.status})`);
+      return res.json();
+    }
+    async function populateBranchSelect() {
+      const base = await getBackend();
       try {
         const branches = await fetchBranches(base);
+        branchSelect.innerHTML = '';
         if (!branches.length) {
-          const o = document.createElement("option");
-          o.textContent = "No branches available";
-          o.disabled = true;
-          selectEl.appendChild(o);
-          return;
+          const opt = document.createElement('option');
+          opt.textContent = 'No branches available';
+          opt.disabled = true;
+          branchSelect.append(opt);
+        } else {
+          branches.forEach(b => {
+            const opt = document.createElement('option');
+            opt.value = b.id;
+            opt.textContent = `${b.name} (#${b.id})`;
+            branchSelect.append(opt);
+          });
         }
-        branches.forEach(({ id, name }) => {
-          if (excludeId !== null && id === excludeId) return;
-          const o = document.createElement("option");
-          o.value = id;
-          o.textContent = `${name} (#${id})`;
-          selectEl.appendChild(o);
-        });
-      } catch (err) {
-        console.error('[popup] populateSelect error', err);
-        statusMsg.textContent = "❌ Failed to load branches";
+      } catch (e) {
+        console.error('[popup] populateBranchSelect error', e);
+        statusMsg.textContent = '❌ Failed to load branches';
       }
-    };
+    }
 
-    // ─── SCRAPE CHAT ───
-    const scrapeChat = async (base) => {
+    // ───── SCRAPE CHAT ─────
+    async function scrapeChat() {
       try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         const [{ result }] = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: () => {
             const messages = [];
-            document.querySelectorAll("[data-message-author-role]").forEach(el => {
-              const role = el.getAttribute("data-message-author-role") === "user" ? "User" : "AI";
+            document.querySelectorAll('[data-message-author-role]').forEach(el => {
+              const role = el.getAttribute('data-message-author-role') === 'user' ? 'User' : 'AI';
               const t = el.innerText.trim();
               if (t) messages.push(`${role}: ${t}`);
             });
             const canvas_images = [];
-            document.querySelectorAll("canvas").forEach(cv => {
-              try { canvas_images.push(cv.toDataURL()); }
-              catch { canvas_images.push(null); }
+            document.querySelectorAll('canvas').forEach(cv => {
+              try { canvas_images.push(cv.toDataURL()); } catch { canvas_images.push(null); }
             });
-            const images = Array.from(document.querySelectorAll("img.chatImage")).map(i => i.src);
+            const images = Array.from(document.querySelectorAll('img.chatImage')).map(i => i.src);
             return { messages, canvas_images, images };
           }
         });
         contextArea.value = JSON.stringify(result, null, 2);
-        statusMsg.textContent = "✅ Chat scraped";
-      } catch {
-        statusMsg.textContent = "❌ Failed to scrape";
+        statusMsg.textContent = '✅ Chat scraped';
+      } catch (e) {
+        console.error('[popup] scrapeChat error', e);
+        statusMsg.textContent = '❌ Failed to scrape';
       }
-    };
-    refreshBtn.onclick     = () => getBackend().then(scrapeChat);
-    copyContextBtn.onclick = () =>
+    }
+    refreshBtn?.addEventListener('click', scrapeChat);
+    copyContextBtn?.addEventListener('click', () =>
       navigator.clipboard.writeText(contextArea.value)
-        .then(() => statusMsg.textContent = "✅ Context copied")
-        .catch(() => statusMsg.textContent = "❌ Copy failed");
+        .then(() => statusMsg.textContent = '✅ Context copied')
+        .catch(() => statusMsg.textContent = '❌ Copy failed')
+    );
 
-    // ─── COMMIT ───
-    commitBtn.onclick = async () => {
-      const base           = await getBackend();
+    // ───── COMMIT ─────
+    commitBtn?.addEventListener('click', async () => {
+      const base = await getBackend();
       const commit_message = messageInput.value.trim();
       let ctx;
-      try {
-        ctx = JSON.parse(contextArea.value);
-      } catch {
-        return statusMsg.textContent = "❌ Invalid JSON";
-      }
+      try { ctx = JSON.parse(contextArea.value); } catch { return statusMsg.textContent = '❌ Invalid JSON'; }
       const branch_id = parseInt(branchSelect.value, 10);
       if (!commit_message || !ctx.messages?.length || !branch_id) {
-        return statusMsg.textContent = "❌ Missing commit data";
+        statusMsg.textContent = '❌ Missing commit data';
+        return;
       }
-
-      console.log("COMMIT: POST to", `${base}/commit/`);
-
       try {
-        const r = await fetch(`${base}/commit/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const res = await fetch(`${base}/commit/`, {
+          method: 'POST', headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
           },
           body: JSON.stringify({ commit_message, conversation_context: ctx, branch_id })
         });
-        console.log("COMMIT: status", r.status);
-
-        const d = await r.json();
-        if (!r.ok) {
-          return statusMsg.textContent = `❌ Commit error: ${d.detail || JSON.stringify(d)}`;
-        }
-
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.detail || JSON.stringify(d));
         let msg = `✅ Commit #${d.commit_hash.slice(0,8)} saved`;
         const tag = tagInput.value.trim();
         if (tag) {
-          console.log("COMMIT: adding tag", tag);
-          const tagRes = await fetch(`${base}/tag/`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
+          const tRes = await fetch(`${base}/tag/`, {
+            method: 'POST', headers: {
+              'Content-Type': 'application/json',
               Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
             },
             body: JSON.stringify({ name: tag, commit_id: d.id })
           });
-          console.log("COMMIT: tag status", tagRes.status);
-          msg += tagRes.ok ? " + Tag added" : " (Tag failed)";
+          msg += tRes.ok ? ' + Tag added' : ' (Tag failed)';
         }
-
         statusMsg.textContent = msg;
       } catch (err) {
-        console.error("COMMIT: fetch error", err);
-        statusMsg.textContent = "❌ Commit failed";
+        console.error('[popup] commit error', err);
+        statusMsg.textContent = `❌ Commit error: ${err.message}`;
       }
-    };
+    });
 
-    // ─── CREATE/VIEW BRANCH ───
-    createBranchBtn.onclick = () => {
-      const name = prompt("New branch name:");
-      if (!name) return;
-      getBackend().then(async (base) => {
-        const r = await fetch(`${base}/branch/`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+    // ───── BRANCH CREATION & VIEW ─────
+    createBranchBtn?.addEventListener('click', async () => {
+      const name = prompt('New branch name:'); if (!name) return;
+      const base = await getBackend();
+      try {
+        const res = await fetch(`${base}/branch/`, {
+          method: 'POST', headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
           },
           body: JSON.stringify({ name })
         });
-        if (r.ok) {
-          alert("✅ Branch created");
-          populateSelect(base, branchSelect);
-        } else {
-          alert("❌ Could not create branch");
-        }
-      });
-    };
-    viewBranchesBtn.onclick = () =>
-      chrome.tabs.create({ url: "https://chat-commit.vercel.app/branches" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        alert('✅ Branch created');
+        populateBranchSelect();
+      } catch (e) {
+        console.error('[popup] create branch error', e);
+        alert('❌ Could not create branch');
+      }
+    });
+    viewBranchesBtn?.addEventListener('click', () =>
+      chrome.tabs.create({ url: `${API_BASE_DEFAULT}/branches` })
+    );
 
-    // ─── ROLLBACK & TIMELINE ───
-    rollbackBtn.onclick = () =>
-      chrome.tabs.create({ url: "https://chat-commit.vercel.app/rollback" });
-    timelineBtn.onclick = () =>
-      chrome.tabs.create({ url: "https://chat-commit.vercel.app/timeline" });
+    // ───── ROLLBACK & TIMELINE ─────
+    rollbackBtn?.addEventListener('click', () =>
+      chrome.tabs.create({ url: `${API_BASE_DEFAULT}/rollback` })
+    );
+    timelineBtn?.addEventListener('click', () =>
+      chrome.tabs.create({ url: `${API_BASE_DEFAULT}/timeline` })
+    );
 
-    // ─── MERGE PANEL ───
-    async function loadBranchesInto(selectorIds) {
+    // ───── MERGE FLOW ─────
+    mergeBtn?.addEventListener('click', async () => {
+      mainPanel.style.display  = 'none';
+      mergePanel.style.display = 'block';
+      mergeStatus.textContent  = '';
+      const base = await getBackend();
       try {
-        const resp = await fetch(`${API_BASE}/branch/`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const branches = await resp.json();
-        selectorIds.forEach(id => {
-          const sel = document.getElementById(id);
-          sel.innerHTML = `<option value="">-- Select branch --</option>`;
-          branches.forEach(b => {
-            const opt = document.createElement('option');
-            opt.value = b.id;
-            opt.textContent = `${b.name} (#${b.id})`;
-            sel.appendChild(opt);
-          });
+        const branches = await fetchBranches(base);
+        mergeSource.innerHTML = '<option value="">Select source</option>';
+        mergeTargetSel.innerHTML = '<option value="">Select target</option>';
+        branches.forEach(b => {
+          const o1 = document.createElement('option'); o1.value = b.id; o1.textContent = `${b.name} (#${b.id})`;
+          const o2 = o1.cloneNode(true);
+          mergeSource.append(o1);
+          mergeTargetSel.append(o2);
         });
-      } catch (err) {
-        console.error('Failed to load branches:', err);
+      } catch (e) {
+        console.error('[popup] merge load error', e);
         mergeStatus.textContent = '❌ Could not load branches';
       }
-    }
-
-    executeMerge.addEventListener('click', async () => {
-      const src    = mergeSource.value;
-      const tgt    = mergeTargetSel.value;
-      mergeStatus.textContent = '';
-
+    });
+    executeMerge?.addEventListener('click', async () => {
+      const src = mergeSource.value;
+      const tgt = mergeTargetSel.value;
       if (!src || !tgt || src === tgt) {
-        return alert('Please select two different branches to merge.');
+        mergeStatus.textContent = '❌ Select two different branches';
+        return;
       }
-
+      const base = await getBackend();
       try {
-        const token = localStorage.getItem(STORAGE_KEY_TOKEN) || '';
-        const res   = await fetch(`${API_BASE}/merge/${src}/${tgt}`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
+        const res = await fetch(`${base}/merge/${src}/${tgt}`, {
+          method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}` }
         });
         const data = await res.json();
-        if (!res.ok) throw data;
-        mergeStatus.textContent = data.message;
-      } catch (err) {
-        const msg = err.detail || err.message || 'Merge failed';
-        mergeStatus.textContent = `❌ ${msg}`;
+        mergeStatus.textContent = res.ok ? `✅ ${data.message}` : `❌ ${data.detail || data.message}`;
+      } catch (e) {
+        console.error('[popup] merge error', e);
+        mergeStatus.textContent = '❌ Merge failed';
       }
     });
-
-    cancelMerge.addEventListener('click', () => {
+    cancelMerge?.addEventListener('click', () => {
       mergePanel.style.display = 'none';
+      mainPanel.style.display  = 'block';
     });
 
-    // ─── INITIALIZE ───
-    getBackend().then((base) => {
-      console.log('[popup] initial backend URL', base);
-      populateSelect(base, branchSelect);
-      scrapeChat(base);
-      loadBranchesInto(['merge-source', 'merge-target']);
-    });
+    // ───── INITIALIZE CONTENT ─────
+    populateBranchSelect();
+    scrapeChat();
   }
 });
