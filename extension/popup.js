@@ -1,20 +1,33 @@
+// popup.js
 console.log('[popup.js] loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
   // Panels & messages
-  const loginPanel    = document.getElementById('login-panel');
-  const mainPanel     = document.getElementById('main-panel');
-  const settingsPanel = document.getElementById('settings-panel');
-  const mergePanel    = document.getElementById('merge-panel');
-  const statusMsg     = document.getElementById('status-message');
-  const loginStatus   = document.getElementById('login-status');
+  const loginPanel     = document.getElementById('login-panel');
+  const mainPanel      = document.getElementById('main-panel');
+  const settingsPanel  = document.getElementById('settings-panel');
+  const mergePanel     = document.getElementById('merge-panel');
+  const statusMsg      = document.getElementById('status-message');
+  const loginStatus    = document.getElementById('login-status');
 
   // Storage & endpoints
-  const STORAGE_KEY_TOKEN = 'auth_token';
-  const API_BASE_DEFAULT  = 'https://chatcommit.fly.dev';
-  const VERCEL_BASE       = 'https://chat-commit.vercel.app';
+  const STORAGE_KEY_TOKEN  = 'auth_token';
+  const API_BASE_DEFAULT   = 'https://chatcommit.fly.dev';
+  const VERCEL_BASE        = 'https://chat-commit.vercel.app';
 
   let lastScrapeData = null;
+
+  // chrome.storage helpers
+  async function setToken(token) {
+    await chrome.storage.local.set({ [STORAGE_KEY_TOKEN]: token });
+  }
+  async function getToken() {
+    const result = await chrome.storage.local.get(STORAGE_KEY_TOKEN);
+    return result[STORAGE_KEY_TOKEN];
+  }
+  async function clearToken() {
+    await chrome.storage.local.remove(STORAGE_KEY_TOKEN);
+  }
 
   const getBackend = () =>
     new Promise(res =>
@@ -35,11 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!r.ok) throw r;
       const { access_token } = await r.json();
       console.log('[login] got token →', access_token);
-      localStorage.setItem(STORAGE_KEY_TOKEN, access_token);
+      await setToken(access_token);
       loginStatus.textContent = '✅ Logged in';
       loginPanel.style.display = 'none';
       mainPanel.style.display  = 'block';
-      // init
       await populateBranchSelect();
       await scrapeChat();
     } catch (e) {
@@ -48,18 +60,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Auto‑login if token present
-  if (localStorage.getItem(STORAGE_KEY_TOKEN)) {
-    loginPanel.style.display = 'none';
-    mainPanel.style.display  = 'block';
-    populateBranchSelect();
-    scrapeChat();
-  }
+  // Auto‑login
+  chrome.storage.local.get(STORAGE_KEY_TOKEN, async ({ auth_token }) => {
+    if (auth_token) {
+      console.log('[startup] existing token →', auth_token);
+      loginPanel.style.display = 'none';
+      mainPanel.style.display  = 'block';
+      await populateBranchSelect();
+      scrapeChat();
+    }
+  });
 
-  // ─── FETCH & POPULATE BRANCHES ─────────────────
+  // ─── FETCH & POPULATE BRANCHES ────────────────────
   async function fetchBranches(base) {
-    // token injection handled in background.js
-    const r = await fetch(`${base}/branch/`);
+    const token = await getToken();
+    const r = await fetch(`${base}/branch/`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     if (!r.ok) throw r;
     return r.json();
   }
@@ -67,19 +84,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const base = await getBackend();
     try {
       const branches = await fetchBranches(base);
-      const select = document.getElementById('branch-select');
-      select.innerHTML = '';
+      const sel = document.getElementById('branch-select');
+      sel.innerHTML = '';
       if (!branches.length) {
         const o = document.createElement('option');
         o.textContent = 'No branches available';
         o.disabled = true;
-        select.append(o);
+        sel.append(o);
       } else {
         branches.forEach(b => {
           const o = document.createElement('option');
           o.value = b.id;
           o.textContent = `${b.name} (#${b.id})`;
-          select.append(o);
+          sel.append(o);
         });
       }
     } catch (e) {
@@ -88,18 +105,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ─── NAVIGATION ────────────────────────────────
-  document.getElementById('view-branches')?.addEventListener('click', () =>
-    chrome.tabs.create({ url: `${VERCEL_BASE}/branches` })
-  );
-  document.getElementById('rollback-btn')?.addEventListener('click', () =>
-    chrome.tabs.create({ url: `${VERCEL_BASE}/rollback` })
-  );
-  document.getElementById('timeline-btn')?.addEventListener('click', () =>
-    chrome.tabs.create({ url: `${VERCEL_BASE}/timeline` })
-  );
+  // ─── OPEN A VERCEL PAGE + INJECT TOKEN ─────────────────
+  async function openWithToken(path) {
+    const token = await getToken();
+    chrome.tabs.create({ url: `${VERCEL_BASE}${path}` }, (tab) => {
+      const tabId = tab.id;
+      function onUpdated(updatedId, changeInfo) {
+        if (updatedId === tabId && changeInfo.status === 'complete') {
+          chrome.tabs.onUpdated.removeListener(onUpdated);
+          chrome.scripting.executeScript({
+            target: { tabId },
+            func: (tkn) => {
+              localStorage.setItem('auth_token', tkn);
+            },
+            args: [token]
+          });
+        }
+      }
+      chrome.tabs.onUpdated.addListener(onUpdated);
+    });
+  }
 
-  // ─── SCRAPE CHAT ───────────────────────────────
+  document.getElementById('view-branches')?.addEventListener('click', () => {
+    openWithToken('/branches');
+  });
+  document.getElementById('rollback-btn')?.addEventListener('click', () => {
+    openWithToken('/rollback');
+  });
+  document.getElementById('timeline-btn')?.addEventListener('click', () => {
+    openWithToken('/timeline');
+  });
+
+  // ─── SCRAPE CHAT ──────────────────────────────────
   async function scrapeChat() {
     try {
       const [tab] = await chrome.tabs.query({ active:true, currentWindow:true });
@@ -132,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   document.getElementById('refresh-chat')?.addEventListener('click', scrapeChat);
 
-  // ─── COPY CONTEXT ──────────────────────────────
+  // ─── COPY CONTEXT ───────────────────────────────
   document.getElementById('copy-context')?.addEventListener('click', () => {
     let out = 'Role\tMessage\n';
     document.querySelectorAll('#context-table tr').forEach(tr => {
@@ -143,53 +180,64 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(() => statusMsg.textContent = '❌ Copy failed');
   });
 
-  // ─── COMMIT ───────────────────────────────────
+  // ─── COMMIT ──────────────────────────────────────
   document.getElementById('commit-btn')?.addEventListener('click', async () => {
-    const base    = await getBackend();
-    const message = document.getElementById('message-input').value.trim();
-    const ctx     = lastScrapeData;
-    const branch  = parseInt(document.getElementById('branch-select').value, 10);
-    const tag     = document.getElementById('tag-input').value.trim();
-    if (!message || !ctx?.messages?.length || !branch) {
+    const base  = await getBackend();
+    const msg   = document.getElementById('message-input').value.trim();
+    const ctx   = lastScrapeData;
+    const bid   = parseInt(document.getElementById('branch-select').value, 10);
+    const tag   = document.getElementById('tag-input').value.trim();
+    if (!msg || !ctx?.messages?.length || !bid) {
       return statusMsg.textContent = '❌ Missing commit data';
     }
     try {
-      const r    = await fetch(`${base}/commit/`, {
+      const token = await getToken();
+      const r = await fetch(`${base}/commit/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify({
-          commit_message: message,
+          commit_message: msg,
           conversation_context: { messages: ctx.messages.map(m => `${m.role}: ${m.text}`) },
-          branch_id: branch
+          branch_id: bid
         })
       });
       const data = await r.json();
       if (!r.ok) throw data;
-      let msg = `✅ Commit #${data.commit_hash.slice(0,8)} saved`;
+      let out = `✅ Commit #${data.commit_hash.slice(0,8)} saved`;
       if (tag) {
         const tRes = await fetch(`${base}/tag/`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
           body: JSON.stringify({ name: tag, commit_id: data.id })
         });
-        msg += tRes.ok ? ' + Tag added' : ' + Tag failed';
+        out += tRes.ok ? ' + Tag added' : ' + Tag failed';
       }
-      statusMsg.textContent = msg;
+      statusMsg.textContent = out;
     } catch (err) {
       console.error('Commit error', err);
-      statusMsg.textContent = `❌ Commit failed: ${JSON.stringify(err)}`;
+      statusMsg.textContent = `❌ Commit failed`;
     }
   });
 
-  // ─── CREATE BRANCH ───────────────────────────
+  // ─── CREATE BRANCH ──────────────────────────────
   document.getElementById('create-branch')?.addEventListener('click', async () => {
     const name = prompt('New branch name:');
     if (!name) return;
     const base = await getBackend();
     try {
+      const token = await getToken();
       const r = await fetch(`${base}/branch/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
         body: JSON.stringify({ name })
       });
       if (!r.ok) throw r;
@@ -197,11 +245,11 @@ document.addEventListener('DOMContentLoaded', () => {
       populateBranchSelect();
     } catch (e) {
       console.error('Create branch error', e);
-      alert(`❌ Could not create branch: ${e}`);
+      alert('❌ Could not create branch');
     }
   });
 
-  // ─── MERGE PANEL ─────────────────────────────
+  // ─── MERGE FLOW ────────────────────────────────
   document.getElementById('merge-btn')?.addEventListener('click', async () => {
     mainPanel.style.display  = 'none';
     mergePanel.style.display = 'block';
@@ -209,8 +257,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const base = await getBackend();
     try {
       const branches = await fetchBranches(base);
-      ['merge-source','merge-target'].forEach(id => {
-        const sel = document.getElementById(id);
+      const src = document.getElementById('merge-source');
+      const tgt = document.getElementById('merge-target');
+      [src, tgt].forEach(sel => {
         sel.innerHTML = '<option value="">Select branch</option>';
         branches.forEach(b => {
           const o = document.createElement('option');
@@ -224,27 +273,45 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('merge-status').textContent = '❌ Could not load branches';
     }
   });
+
   document.getElementById('execute-merge')?.addEventListener('click', async () => {
     const src = document.getElementById('merge-source').value;
     const tgt = document.getElementById('merge-target').value;
     if (!src || !tgt || src === tgt) {
-      document.getElementById('merge-status').textContent = '❌ Select two different branches';
-      return;
+      return document.getElementById('merge-status').textContent = '❌ Select two different branches';
     }
-    const base = await getBackend();
+    const base  = await getBackend();
+    const token = await getToken();
     try {
-      const r    = await fetch(`${base}/merge/${src}/${tgt}`, { method: 'POST' });
+      const r = await fetch(`${base}/merge/${src}/${tgt}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
       const data = await r.json();
       document.getElementById('merge-status').textContent = r.ok
         ? `✅ ${data.message}`
-        : `❌ ${JSON.stringify(data)}`;
+        : '❌ Merge failed';
     } catch (e) {
       console.error('Merge error', e);
       document.getElementById('merge-status').textContent = '❌ Merge failed';
     }
   });
+
   document.getElementById('cancel-merge')?.addEventListener('click', () => {
-    mergePanel.style.display = 'none';
-    mainPanel.style.display  = 'block';
+    mergePanel.style.display  = 'none';
+    mainPanel.style.display   = 'block';
+  });
+
+  // ─── LOG OUT ─────────────────────────────────────
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await clearToken();
+    mainPanel.style.display     = 'none';
+    settingsPanel.style.display = 'none';
+    mergePanel.style.display    = 'none';
+    loginPanel.style.display    = 'block';
+    loginStatus.textContent     = '';
+    statusMsg.textContent       = '';
+    document.getElementById('login-email').value    = '';
+    document.getElementById('login-password').value = '';
   });
 });
