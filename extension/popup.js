@@ -2,7 +2,6 @@
 console.log('[popup.js] loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Panels & messages
   const loginPanel     = document.getElementById('login-panel');
   const mainPanel      = document.getElementById('main-panel');
   const settingsPanel  = document.getElementById('settings-panel');
@@ -10,26 +9,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusMsg      = document.getElementById('status-message');
   const loginStatus    = document.getElementById('login-status');
 
-  // Storage & endpoints
   const STORAGE_KEY_TOKEN  = 'auth_token';
   const API_BASE_DEFAULT   = 'https://chatcommit.fly.dev';
   const VERCEL_BASE        = 'https://chat-commit.vercel.app';
 
   let lastScrapeData = null;
 
-  // chrome.storage helpers
   async function setToken(token) {
     await chrome.storage.local.set({ [STORAGE_KEY_TOKEN]: token });
-  }
-  async function getToken() {
-    const result = await chrome.storage.local.get(STORAGE_KEY_TOKEN);
-    return result[STORAGE_KEY_TOKEN];
-  }
-  async function clearToken() {
-    await chrome.storage.local.remove(STORAGE_KEY_TOKEN);
+    console.log('[setToken] token saved to storage');
   }
 
-  // Backend URL helper
+  async function getToken() {
+    const result = await chrome.storage.local.get(STORAGE_KEY_TOKEN);
+    console.log('[getToken] token retrieved:', result[STORAGE_KEY_TOKEN]);
+    return result[STORAGE_KEY_TOKEN];
+  }
+
+  async function clearToken() {
+    await chrome.storage.local.remove(STORAGE_KEY_TOKEN);
+    console.log('[clearToken] token removed');
+  }
+
   const getBackend = () =>
     new Promise(res =>
       chrome.storage.local.get('repoUrl', o => res(o.repoUrl || API_BASE_DEFAULT))
@@ -49,11 +50,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!resp.ok) throw resp;
       const { access_token } = await resp.json();
       await setToken(access_token);
-      loginStatus.textContent = '✅ Logged in';
-      loginPanel.style.display = 'none';
-      mainPanel.style.display  = 'block';
-      await populateBranchSelect();
-      await scrapeChat();
+
+      setTimeout(async () => {
+        loginStatus.textContent = '✅ Logged in';
+        loginPanel.style.display = 'none';
+        mainPanel.style.display  = 'block';
+        await populateBranchSelect();
+        await scrapeChat();
+      }, 100);
     } catch (err) {
       console.error('Login error', err);
       loginStatus.textContent = '❌ Login failed';
@@ -63,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── AUTO‑LOGIN ───────────────────────────────────
   chrome.storage.local.get(STORAGE_KEY_TOKEN, async ({ auth_token }) => {
     if (auth_token) {
-      console.log('[startup] existing token →', auth_token);
+      console.log('[startup] token found →', auth_token);
       loginPanel.style.display = 'none';
       mainPanel.style.display  = 'block';
       await populateBranchSelect();
@@ -74,12 +78,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── FETCH & POPULATE BRANCHES ────────────────────
   async function fetchBranches(base) {
     const token = await getToken();
+    console.log('[fetchBranches] fetching from', base, 'with token:', token);
     const r = await fetch(`${base}/branch/`, {
       headers: { Authorization: `Bearer ${token}` }
     });
-    if (!r.ok) throw r;
+    if (!r.ok) throw await r.json();
     return r.json();
   }
+
   async function populateBranchSelect() {
     const base = await getBackend();
     try {
@@ -105,24 +111,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ─── OPEN VERCEL + INJECT TOKEN → RELOAD ─────────
+  // ─── NAVIGATION ───────────────────────────────────
   async function openWithToken(path) {
-  const token = await getToken();
-  // include it in the fragment so injectToken.js picks it up
-  const url = `${VERCEL_BASE}${path}#token=${encodeURIComponent(token)}`;
-  chrome.tabs.create({ url });
-}
+    const token = await getToken();
+    const url = `${VERCEL_BASE}${path}#token=${encodeURIComponent(token)}`;
+    chrome.tabs.create({ url });
+  }
 
-
-  document.getElementById('view-branches')?.addEventListener('click', () => {
-    openWithToken('/branches');
-  });
-  document.getElementById('rollback-btn')?.addEventListener('click', () => {
-    openWithToken('/rollback');
-  });
-  document.getElementById('timeline-btn')?.addEventListener('click', () => {
-    openWithToken('/timeline');
-  });
+  document.getElementById('view-branches')?.addEventListener('click', () => openWithToken('/branches'));
+  document.getElementById('rollback-btn')?.addEventListener('click', () => openWithToken('/rollback'));
+  document.getElementById('timeline-btn')?.addEventListener('click', () => openWithToken('/timeline'));
 
   // ─── SCRAPE CHAT ──────────────────────────────────
   async function scrapeChat() {
@@ -155,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusMsg.textContent = '❌ Failed to scrape';
     }
   }
+
   document.getElementById('refresh-chat')?.addEventListener('click', scrapeChat);
 
   // ─── COPY CONTEXT ───────────────────────────────
