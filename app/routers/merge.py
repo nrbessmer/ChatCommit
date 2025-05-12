@@ -1,10 +1,14 @@
+# app/routers/merge.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Branch, Commit
+from ..models import Branch, Commit, User
+from ..routers.auth import get_current_user
 
-router = APIRouter()  # no prefix here
+router = APIRouter(tags=["merge"])
+
 
 @router.post(
     "/merge/{source_branch_id}/{target_branch_id}",
@@ -14,17 +18,50 @@ def merge_branches(
     source_branch_id: int,
     target_branch_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     if source_branch_id == target_branch_id:
-        raise HTTPException(400, "Cannot merge a branch into itself")
+        raise HTTPException(status_code=400, detail="Cannot merge a branch into itself")
 
-    src = db.get(Branch, source_branch_id)
-    dst = db.get(Branch, target_branch_id)
+    # Load source and target, ensuring they belong to the user
+    src = (
+        db.query(Branch)
+          .filter(
+              Branch.id == source_branch_id,
+              Branch.owner_id == current_user.id
+          )
+          .first()
+    )
+    dst = (
+        db.query(Branch)
+          .filter(
+              Branch.id == target_branch_id,
+              Branch.owner_id == current_user.id
+          )
+          .first()
+    )
     if not src or not dst:
-        raise HTTPException(404, "One or both branches not found")
+        raise HTTPException(status_code=404, detail="One or both branches not found")
 
-    src_commits = db.query(Commit).filter(Commit.branch_id == source_branch_id).all()
-    dst_hashes  = {c.commit_hash for c in db.query(Commit).filter(Commit.branch_id == target_branch_id)}
+    # Only merge commits the user owns on the source branch
+    src_commits = (
+        db.query(Commit)
+          .filter(
+              Commit.branch_id == source_branch_id,
+              Commit.owner_id == current_user.id
+          )
+          .all()
+    )
+
+    # Gather existing hashes on the destination branch (also user‑owned)
+    dst_hashes = {
+        c.commit_hash
+        for c in db.query(Commit)
+                   .filter(
+                       Commit.branch_id == target_branch_id,
+                       Commit.owner_id == current_user.id
+                   )
+    }
 
     merged = []
     for c in src_commits:
@@ -35,6 +72,7 @@ def merge_branches(
                 conversation_context=c.conversation_context,
                 branch_id=target_branch_id,
                 parent_commit_id=dst.current_commit_id,
+                owner_id=current_user.id,  # assign ownership to the current user
             )
             db.add(new)
             db.flush()
@@ -42,6 +80,7 @@ def merge_branches(
             merged.append(c.commit_hash)
 
     db.commit()
+
     return {
         "message": f"Merged {len(merged)} commits from '{src.name}' → '{dst.name}'",
         "merged_commits": merged,

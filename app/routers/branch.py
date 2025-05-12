@@ -6,11 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Branch, Commit
+from ..models import Branch, Commit, User
 from ..schemas import BranchCreate, BranchResponse, CommitResponse
-from ..routers.auth import get_current_user  # if you enforce auth
+from ..routers.auth import get_current_user
 
-router = APIRouter(tags=["branches"])  # no prefix here!
+router = APIRouter(tags=["branches"])
+
 
 @router.post(
     "/",
@@ -18,40 +19,49 @@ router = APIRouter(tags=["branches"])  # no prefix here!
     summary="Create a new branch",
 )
 def create_branch(
-    branch: BranchCreate,
+    branch_in: BranchCreate,
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    if branch.base_commit_id is not None:
-        base_commit = (
+    # If basing off an existing commit, ensure it belongs to the user
+    if branch_in.base_commit_id is not None:
+        base = (
             db.query(Commit)
-            .filter(Commit.id == branch.base_commit_id)
-            .first()
+              .filter(
+                  Commit.id == branch_in.base_commit_id,
+                  Commit.owner_id == current_user.id
+              )
+              .first()
         )
-        if not base_commit:
-            raise HTTPException(
-                status_code=404, detail="Base commit not found"
-            )
+        if not base:
+            raise HTTPException(status_code=404, detail="Base commit not found")
 
-    db_branch = Branch(
-        name=branch.name,
-        current_commit_id=branch.base_commit_id,
+    new_branch = Branch(
+        name=branch_in.name,
+        current_commit_id=branch_in.base_commit_id,
+        owner_id=current_user.id,          # assumes you’ve added owner_id to Branch model
     )
-    db.add(db_branch)
+    db.add(new_branch)
     db.commit()
-    db.refresh(db_branch)
-    return db_branch
+    db.refresh(new_branch)
+    return new_branch
+
 
 @router.get(
     "/",
     response_model=List[BranchResponse],
-    summary="List all branches",
+    summary="List all your branches",
 )
 def list_branches(
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    return db.query(Branch).all()
+    return (
+        db.query(Branch)
+          .filter(Branch.owner_id == current_user.id)
+          .all()
+    )
+
 
 @router.get(
     "/{branch_id}",
@@ -61,12 +71,20 @@ def list_branches(
 def get_branch(
     branch_id: int,
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    branch = db.query(Branch).get(branch_id)
-    if not branch:
+    br = (
+        db.query(Branch)
+          .filter(
+              Branch.id == branch_id,
+              Branch.owner_id == current_user.id
+          )
+          .first()
+    )
+    if not br:
         raise HTTPException(status_code=404, detail="Branch not found")
-    return branch
+    return br
+
 
 @router.get(
     "/{branch_id}/commits",
@@ -76,21 +94,32 @@ def get_branch(
 def get_commits_for_branch(
     branch_id: int,
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    branch = db.query(Branch).get(branch_id)
-    if not branch:
+    br = (
+        db.query(Branch)
+          .filter(
+              Branch.id == branch_id,
+              Branch.owner_id == current_user.id
+          )
+          .first()
+    )
+    if not br:
         raise HTTPException(status_code=404, detail="Branch not found")
 
-    # Base query: all commits for this branch
-    query = db.query(Commit).filter(Commit.branch_id == branch_id)
+    # all commits owned by the user on that branch
+    q = (
+        db.query(Commit)
+          .filter(
+              Commit.branch_id == branch_id,
+              Commit.owner_id == current_user.id
+          )
+    )
+    if br.current_commit_id is not None:
+        q = q.filter(Commit.id <= br.current_commit_id)
 
-    # If a rollback has been applied, limit to commits up to the current_commit_id
-    if branch.current_commit_id is not None:
-        query = query.filter(Commit.id <= branch.current_commit_id)
+    return q.order_by(Commit.created_at.desc()).all()
 
-    commits = query.order_by(Commit.created_at.desc()).all()
-    return commits
 
 @router.get(
     "/{branch_id}/head",
@@ -100,19 +129,28 @@ def get_commits_for_branch(
 def get_branch_head(
     branch_id: int,
     db: Session = Depends(get_db),
-    # current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    branch = db.query(Branch).get(branch_id)
-    if not branch:
+    br = (
+        db.query(Branch)
+          .filter(
+              Branch.id == branch_id,
+              Branch.owner_id == current_user.id
+          )
+          .first()
+    )
+    if not br:
         raise HTTPException(status_code=404, detail="Branch not found")
 
     head = (
         db.query(Commit)
-        .filter(Commit.id == branch.current_commit_id)
-        .first()
+          .filter(
+              Commit.id == br.current_commit_id,
+              Commit.owner_id == current_user.id
+          )
+          .first()
     )
-
     return {
-        "branch": branch.name,
+        "branch": br.name,
         "head_commit": head,
     }

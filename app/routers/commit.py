@@ -2,9 +2,7 @@
 
 from datetime import datetime, timezone
 import hashlib
-from typing import List, Dict, Any
 
-import jwt
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -12,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import Commit, Branch, User
 from ..schemas import CommitCreate, CommitResponse
-from ..config import SECRET_KEY, ALGORITHM  # ensure this reads your ENV secret
+from ..config import SECRET_KEY, ALGORITHM
 
 router = APIRouter(tags=["commits"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -37,11 +35,19 @@ def get_current_user(
 
 @router.get(
     "/",
-    response_model=List[CommitResponse],
-    summary="List all commits",
+    response_model=list[CommitResponse],
+    summary="List all your commits",
 )
-def list_commits(db: Session = Depends(get_db)) -> List[Commit]:
-    return db.query(Commit).order_by(Commit.created_at.desc()).all()
+def list_commits(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[Commit]:
+    return (
+        db.query(Commit)
+          .filter(Commit.owner_id == current_user.id)
+          .order_by(Commit.created_at.desc())
+          .all()
+    )
 
 
 @router.post(
@@ -64,13 +70,12 @@ def create_commit(
     parent_commit_id = None
     branch = None
     if commit_in.branch_id is not None:
-        branch = db.query(Branch).get(commit_in.branch_id)
+        branch = db.get(Branch, commit_in.branch_id)
         if not branch:
             raise HTTPException(status_code=404, detail="Branch not found")
         parent_commit_id = branch.current_commit_id
 
-    # store full conversation_context (with messages list)
-    ctx_dict: Dict[str, Any] = commit_in.conversation_context.dict()
+    ctx_dict = commit_in.conversation_context.dict()
 
     db_commit = Commit(
         commit_hash=commit_hash,
@@ -78,7 +83,6 @@ def create_commit(
         conversation_context=ctx_dict,
         branch_id=commit_in.branch_id,
         parent_commit_id=parent_commit_id,
-        # assign to the actual column name in your model
         owner_id=current_user.id,
     )
     db.add(db_commit)
@@ -96,10 +100,21 @@ def create_commit(
 @router.get(
     "/{commit_id}",
     response_model=CommitResponse,
-    summary="Fetch a single commit by ID",
+    summary="Fetch one of your commits by ID",
 )
-def get_commit(commit_id: int, db: Session = Depends(get_db)) -> Commit:
-    commit = db.query(Commit).get(commit_id)
+def get_commit(
+    commit_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Commit:
+    commit = (
+        db.query(Commit)
+          .filter(
+              Commit.id == commit_id,
+              Commit.owner_id == current_user.id
+          )
+          .first()
+    )
     if not commit:
         raise HTTPException(status_code=404, detail="Commit not found")
     return commit

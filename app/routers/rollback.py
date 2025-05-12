@@ -4,11 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Branch, Commit
+from ..models import Branch, Commit, User
+from ..routers.auth import get_current_user
 
-router = APIRouter(  # **no** prefix here
-    tags=["rollback"],
-)
+router = APIRouter(tags=["rollback"])
 
 
 @router.post(
@@ -19,14 +18,29 @@ def rollback_branch(
     branch_id: int,
     commit_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    # 1) fetch branch
-    branch = db.query(Branch).get(branch_id)
+    # 1) fetch branch owned by current user
+    branch = (
+        db.query(Branch)
+          .filter(
+              Branch.id == branch_id,
+              Branch.owner_id == current_user.id
+          )
+          .first()
+    )
     if not branch:
         raise HTTPException(status_code=404, detail="Branch not found")
 
-    # 2) fetch commit
-    commit = db.query(Commit).get(commit_id)
+    # 2) fetch commit owned by current user
+    commit = (
+        db.query(Commit)
+          .filter(
+              Commit.id == commit_id,
+              Commit.owner_id == current_user.id
+          )
+          .first()
+    )
     if not commit:
         raise HTTPException(status_code=404, detail="Commit not found")
 
