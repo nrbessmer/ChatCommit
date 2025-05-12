@@ -11,12 +11,12 @@ from ..models import Commit, Tag, User
 from ..schemas import CommitResponse
 from ..routers.auth import get_current_user
 
+# Mount this router at /timeline
 router = APIRouter(
     prefix="/timeline",
     tags=["timeline"],
     dependencies=[Depends(get_current_user)]
 )
-
 
 @router.get(
     "/",
@@ -32,10 +32,10 @@ def get_timeline(
     start_date: Optional[datetime] = Query(None, description="Start of date range"),
     end_date: Optional[datetime] = Query(None, description="End of date range"),
 ) -> List[CommitResponse]:
-    # 1) Only the current user’s commits
+    # Only the current user’s commits
     query = db.query(Commit).filter(Commit.owner_id == current_user.id)
 
-    # 2) Optional branch/date filters
+    # Apply branch and date filters
     if branch_id is not None:
         query = query.filter(Commit.branch_id == branch_id)
     if start_date:
@@ -45,7 +45,7 @@ def get_timeline(
 
     commits = query.order_by(Commit.created_at.desc()).all()
 
-    # 3) Optional tag filter (only this user’s tags)
+    # Filter by tag if provided
     if tag:
         tagged_ids = {
             t.commit_id
