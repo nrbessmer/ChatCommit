@@ -58,7 +58,7 @@ class SubscriptionResponse(BaseModel):
         from_attributes = True
 
 # ─── Router ──────────────────────────────────────────────────
-router = APIRouter(prefix="/subscription", tags=["subscription"])
+router = APIRouter(tags=["subscription"])
 
 
 @router.get("/", response_model=SubscriptionResponse)
