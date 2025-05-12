@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('view-branches')?.addEventListener('click', () => openWithToken('/branches'));
   document.getElementById('rollback-btn')?.addEventListener('click', () => openWithToken('/rollback'));
-  document.getElementById('timeline-btn')?.addEventListener('click', () => openWithToken('/timeline'));
+  document.getElementById('timeline-btn')?.addEventListener('click', () => openWithToken('/timeline/'));
 
   // ─── SCRAPE CHAT ──────────────────────────────────
   async function scrapeChat() {
