@@ -154,13 +154,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ─── NAVIGATION BUTTONS ───────────────────────
     viewBranchesBtn?.addEventListener('click', () => {
-      chrome.tabs.create({ url: `${VERCEL_BASE}/branches/` });
+      chrome.tabs.create({ url: `${VERCEL_BASE}/branches` });
     });
     rollbackBtn?.addEventListener('click', () => {
-      chrome.tabs.create({ url: `${VERCEL_BASE}/rollback/` });
+      chrome.tabs.create({ url: `${VERCEL_BASE}/rollback` });
     });
     timelineBtn?.addEventListener('click', () => {
-      chrome.tabs.create({ url: `${VERCEL_BASE}/timeline/` });
+      // fixed: drop trailing slash to avoid 307 redirect
+      chrome.tabs.create({ url: `${VERCEL_BASE}/timeline` });
     });
 
     // ─── REFRESH & SCRAPE CHAT ────────────────────
@@ -210,60 +211,50 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(() => statusMsg.textContent = '❌ Copy failed');
     });
 
-    // ─── COMMIT (fixed) ───────────────────────────
-commitBtn.addEventListener('click', async () => {
-  const base          = await getBackend();
-  const commit_message= messageInput.value.trim();
-  const ctx           = lastScrapeData;
-  const branch_id     = parseInt(branchSelect.value, 10);
-  const tag           = tagInput.value.trim();
-
-  if (!commit_message || !ctx?.messages?.length || !branch_id) {
-    return statusMsg.textContent = '❌ Missing commit data';
-  }
-
-  try {
-    // Turn objects into strings
-    const stringMessages = ctx.messages.map(m => `${m.role}: ${m.text}`);
-
-    // 1) Create the commit
-    const r = await fetch(`${base}/commit/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
-      },
-      body: JSON.stringify({
-        commit_message,
-        conversation_context: { messages: stringMessages },
-        branch_id
-      })
+    // ─── COMMIT ───────────────────────────
+    commitBtn.addEventListener('click', async () => {
+      const base           = await getBackend();
+      const commit_message = messageInput.value.trim();
+      const ctx            = lastScrapeData;
+      const branch_id      = parseInt(branchSelect.value, 10);
+      const tag            = tagInput.value.trim();
+      if (!commit_message || !ctx?.messages?.length || !branch_id) {
+        return statusMsg.textContent = '❌ Missing commit data';
+      }
+      try {
+        const stringMessages = ctx.messages.map(m => `${m.role}: ${m.text}`);
+        const r = await fetch(`${base}/commit/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
+          },
+          body: JSON.stringify({
+            commit_message,
+            conversation_context: { messages: stringMessages },
+            branch_id
+          })
+        });
+        const data = await r.json();
+        if (!r.ok) throw data;
+        let msg = `✅ Commit #${data.commit_hash.slice(0,8)} saved`;
+        if (tag) {
+          const tRes = await fetch(`${base}/tag/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
+            },
+            body: JSON.stringify({ name: tag, commit_id: data.id })
+          });
+          msg += tRes.ok ? ' + Tag added' : ' + Tag failed';
+        }
+        statusMsg.textContent = msg;
+      } catch (err) {
+        console.error('Commit error', err);
+        statusMsg.textContent = `❌ Commit failed: ${JSON.stringify(err)}`;
+      }
     });
-    const data = await r.json();
-    if (!r.ok) throw data;
-
-    let msg = `✅ Commit #${data.commit_hash.slice(0,8)} saved`;
-
-    // 2) If user entered a tag, POST it
-    if (tag) {
-      const tRes = await fetch(`${base}/tag/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem(STORAGE_KEY_TOKEN)}`
-        },
-        body: JSON.stringify({ name: tag, commit_id: data.id })
-      });
-      msg += tRes.ok ? ' + Tag added' : ' + Tag failed';
-    }
-
-    statusMsg.textContent = msg;
-  } catch (err) {
-    console.error('Commit error', err);
-    statusMsg.textContent = `❌ Commit failed: ${JSON.stringify(err)}`;
-  }
-});
-
 
     // ─── CREATE BRANCH ───────────────────────────
     createBranchBtn?.addEventListener('click', async () => {
