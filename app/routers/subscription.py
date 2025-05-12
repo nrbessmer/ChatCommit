@@ -30,9 +30,8 @@ if not STRIPE_SECRET_KEY:
     raise RuntimeError("STRIPE_SECRET_KEY is required")
 if not STRIPE_PRICE_ID:
     raise RuntimeError("STRIPE_PRICE_ID is required")
-if not STRIPE_WEBHOOK_SECRET: # Make sure webhook secret is also checked
+if not STRIPE_WEBHOOK_SECRET:  # Make sure webhook secret is also checked
     raise RuntimeError("STRIPE_WEBHOOK_SECRET is required")
-
 
 stripe.api_key = STRIPE_SECRET_KEY
 logger.info(f"Configured Stripe with key starting: {STRIPE_SECRET_KEY[:7]}...")
@@ -87,11 +86,11 @@ async def get_subscription_status(
                     # Get the invoice and payment intent
                     if sub.latest_invoice:
                         invoice_id = sub.latest_invoice
-                        if isinstance(invoice_id, str): # Ensure it's an ID string
-                            invoice = stripe.Invoice.retrieve(invoice_id)
+                        if isinstance(invoice_id, str):  # Ensure it's an ID string
+                            invoice = stripe.Invoice.retrieve(invoice_id, expand=['payment_intent'])
                             if hasattr(invoice, 'payment_intent') and invoice.payment_intent:
                                 payment_intent_id = invoice.payment_intent
-                                if isinstance(payment_intent_id, str): # Ensure it's an ID string
+                                if isinstance(payment_intent_id, str):  # Ensure it's an ID string
                                     try:
                                         payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
                                         if payment_intent.status == 'requires_action' or payment_intent.status == 'requires_confirmation':
@@ -127,7 +126,7 @@ async def get_subscription_status(
 async def create_subscription(
     payload: SubscriptionRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user) # Ensure user is authenticated
+    current_user: User = Depends(get_current_user)  # Ensure user is authenticated
 ):
     """Create a new subscription"""
     # Ensure the email in payload matches the authenticated user's email
@@ -138,7 +137,7 @@ async def create_subscription(
             detail="Email in request does not match authenticated user."
         )
     
-    user = current_user # Use the authenticated user
+    user = current_user  # Use the authenticated user
 
     try:
         logger.info(f"Processing subscription for {user.email}")
@@ -196,8 +195,8 @@ async def create_subscription(
                 items=[{"price": payload.planId}],
                 payment_behavior='default_incomplete',
                 payment_settings={'save_default_payment_method': 'on_subscription'},
-                metadata={'user_id': str(user.id), 'user_email': user.email}, # Add email to metadata
-                expand=['latest_invoice.payment_intent'] # Expand to get payment_intent directly
+                metadata={'user_id': str(user.id), 'user_email': user.email},  # Add email to metadata
+                expand=['latest_invoice']  # Expand only latest_invoice, not payment_intent directly
             )
             
             logger.info(f"Created subscription: {subscription.id} for user {user.email}")
@@ -206,29 +205,34 @@ async def create_subscription(
             payment_intent_client_secret = None
             requires_action = False
             
-            if subscription.status == 'incomplete' and subscription.latest_invoice and subscription.latest_invoice.payment_intent:
-                pi = subscription.latest_invoice.payment_intent
-                if pi.status == 'requires_action' or pi.status == 'requires_confirmation':
-                    requires_action = True
-                    payment_intent_client_secret = pi.client_secret
-                    logger.info(f"Subscription {subscription.id} for {user.email} requires action. PI status: {pi.status}")
-                    return SubscriptionResponse(
-                        subscribed=False,
-                        date_subscribed=None,
-                        date_subscription_expires=None,
-                        requires_action=True,
-                        payment_intent_client_secret=payment_intent_client_secret
-                    )
-                # If status is incomplete but not requires_action (e.g., waiting for webhook)
-                logger.info(f"Subscription {subscription.id} for {user.email} is incomplete but does not require immediate client action. PI status: {pi.status if pi else 'N/A'}")
+            # Check if subscription is incomplete and has a latest invoice
+            if subscription.status == 'incomplete' and subscription.latest_invoice:
+                # Fetch the payment intent associated with the invoice, if it exists
+                invoice = subscription.latest_invoice
+                if isinstance(invoice, dict):
+                    invoice = stripe.Invoice.retrieve(invoice['id'], expand=['payment_intent'])
+                if hasattr(invoice, 'payment_intent') and invoice.payment_intent:
+                    pi = invoice.payment_intent
+                    if hasattr(pi, 'status') and pi.status in ['requires_action', 'requires_confirmation']:
+                        requires_action = True
+                        payment_intent_client_secret = pi.client_secret
+                        logger.info(f"Subscription {subscription.id} for {user.email} requires action. PI status: {pi.status}")
+                        return SubscriptionResponse(
+                            subscribed=False,
+                            date_subscribed=None,
+                            date_subscription_expires=None,
+                            requires_action=True,
+                            payment_intent_client_secret=payment_intent_client_secret
+                        )
+                # If status is incomplete but no payment intent or not requiring action
+                logger.info(f"Subscription {subscription.id} for {user.email} is incomplete but does not require immediate client action.")
                 return SubscriptionResponse(
                     subscribed=False,
                     date_subscribed=None,
                     date_subscription_expires=None,
-                    requires_action=False, # Or True if you want client to poll/wait
-                    payment_intent_client_secret=pi.client_secret if pi else None
+                    requires_action=False,
+                    payment_intent_client_secret=None
                 )
-
 
             # If subscription is active immediately (e.g., trial without payment)
             if subscription.status == 'active':
@@ -238,7 +242,7 @@ async def create_subscription(
                 user.subscribed = True
                 user.date_subscribed = now
                 user.date_subscription_expires = expires
-                user.activated = True # Assuming activated means has an active subscription
+                user.activated = True  # Assuming activated means has an active subscription
                 db.commit()
                 logger.info(f"Subscription {subscription.id} for {user.email} is active. Expires: {expires}")
                 return SubscriptionResponse(
@@ -255,15 +259,15 @@ async def create_subscription(
                 subscribed=False,
                 date_subscribed=None,
                 date_subscription_expires=None,
-                requires_action=False, # Default to false, specific cases handled above
+                requires_action=False,  # Default to false, specific cases handled above
                 payment_intent_client_secret=None
             )
 
         except stripe.error.StripeError as e:
             logger.error(f"Subscription creation error for {user.email}: {str(e)}")
             # Check if error is due to payment failure that needs action
-            if e.code == 'card_error' and e.payment_intent and e.payment_intent.status == 'requires_action':
-                 return SubscriptionResponse(
+            if hasattr(e, 'code') and e.code == 'card_error' and hasattr(e, 'payment_intent') and e.payment_intent and e.payment_intent.status == 'requires_action':
+                return SubscriptionResponse(
                     subscribed=False,
                     date_subscribed=None,
                     date_subscription_expires=None,
@@ -275,7 +279,7 @@ async def create_subscription(
                 detail=f"Subscription error: {str(e)}"
             )
 
-    except HTTPException: # Re-raise HTTPExceptions directly
+    except HTTPException:  # Re-raise HTTPExceptions directly
         raise
     except Exception as e:
         logger.error(f"Unexpected error during subscription creation for {user.email}: {str(e)}")
@@ -305,7 +309,7 @@ async def confirm_subscription(
         try:
             payment_intent = stripe.PaymentIntent.retrieve(
                 payload.payment_intent_id,
-                expand=['invoice.subscription'] # Expand to get subscription details
+                expand=['invoice.subscription']  # Expand to get subscription details
             )
             logger.info(f"Payment intent {payment_intent.id} status for user {current_user.email}: {payment_intent.status}")
             
@@ -342,7 +346,7 @@ async def confirm_subscription(
                         requires_action=True,
                         payment_intent_client_secret=payment_intent.client_secret
                     )
-                else: # Payment succeeded but subscription not active, or other states
+                else:  # Payment succeeded but subscription not active, or other states
                     logger.warning(f"Payment {payment_intent.id} status: {payment_intent.status}, Subscription {subscription.id} status: {subscription.status} for user {current_user.email}. Not activating.")
                     # Fall through to check generic user status
             
@@ -363,7 +367,7 @@ async def confirm_subscription(
                         requires_action=False,
                         payment_intent_client_secret=None
                     )
-                else: # User not subscribed in DB, try to find an active subscription via Stripe API
+                else:  # User not subscribed in DB, try to find an active subscription via Stripe API
                     active_subs = stripe.Subscription.list(customer=current_user.stripe_customer_id, status='active', limit=1)
                     if active_subs and active_subs.data:
                         active_sub = active_subs.data[0]
@@ -390,7 +394,7 @@ async def confirm_subscription(
                 subscribed=current_user.subscribed,
                 date_subscribed=current_user.date_subscribed,
                 date_subscription_expires=current_user.date_subscription_expires,
-                requires_action=False, # Default unless PI indicates otherwise
+                requires_action=False,  # Default unless PI indicates otherwise
                 payment_intent_client_secret=payment_intent.client_secret if payment_intent.status in ['requires_action', 'requires_confirmation', 'requires_payment_method'] else None
             )
             
@@ -401,7 +405,7 @@ async def confirm_subscription(
                 detail=f"Payment confirmation error: {str(e)}"
             )
             
-    except HTTPException: # Re-raise HTTPExceptions directly
+    except HTTPException:  # Re-raise HTTPExceptions directly
         raise
     except Exception as e:
         logger.error(f"Unexpected error in confirm_subscription for {current_user.email}: {str(e)}")
@@ -442,7 +446,7 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
 
     if hasattr(event.data.object, 'customer') and event.data.object.customer:
         customer_id = event.data.object.customer
-    elif hasattr(event.data.object, 'id') and event.data.object.object == 'customer': # e.g. customer.created
+    elif hasattr(event.data.object, 'id') and event.data.object.object == 'customer':  # e.g. customer.created
         customer_id = event.data.object.id
     
     if hasattr(event.data.object, 'metadata'):
@@ -453,15 +457,14 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
     if customer_id:
         user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
     
-    if not user and user_id_metadata: # Fallback to user_id from metadata if customer lookup failed
+    if not user and user_id_metadata:  # Fallback to user_id from metadata if customer lookup failed
         try:
             user = db.query(User).filter(User.id == int(user_id_metadata)).first()
         except ValueError:
             logger.warning(f"Invalid user_id in metadata: {user_id_metadata} for event {event.id}")
     
-    if not user and user_email_metadata: # Fallback to email from metadata
+    if not user and user_email_metadata:  # Fallback to email from metadata
         user = db.query(User).filter(User.email == user_email_metadata).first()
-
 
     if not user:
         logger.warning(f"Webhook event {event.id} ({event.type}): User not found for customer {customer_id} or metadata (user_id: {user_id_metadata}, email: {user_email_metadata}). Event will not be fully processed for user DB update.")
@@ -477,15 +480,15 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
             
             user.subscribed = is_active
             if is_active:
-                if not user.date_subscribed: # Only set if not already set, or if it's a new subscription
+                if not user.date_subscribed:  # Only set if not already set, or if it's a new subscription
                     user.date_subscribed = datetime.utcfromtimestamp(subscription.start_date) if subscription.start_date else datetime.utcnow()
                 user.date_subscription_expires = datetime.utcfromtimestamp(subscription.current_period_end) if subscription.current_period_end else datetime.utcnow() + timedelta(days=30)
                 user.activated = True
             elif subscription.status == 'canceled' or event.type == 'customer.subscription.deleted':
-                 # Keep date_subscribed, but clear expires or set to past if needed
-                 user.date_subscription_expires = datetime.utcfromtimestamp(subscription.ended_at) if hasattr(subscription, 'ended_at') and subscription.ended_at else datetime.utcnow()
-                 # user.activated might be set to False or based on other logic
-            else: # Other non-active statuses (incomplete, past_due, etc.)
+                # Keep date_subscribed, but clear expires or set to past if needed
+                user.date_subscription_expires = datetime.utcfromtimestamp(subscription.ended_at) if hasattr(subscription, 'ended_at') and subscription.ended_at else datetime.utcnow()
+                # user.activated might be set to False or based on other logic
+            else:  # Other non-active statuses (incomplete, past_due, etc.)
                 user.date_subscription_expires = datetime.utcfromtimestamp(subscription.current_period_end) if subscription.current_period_end else None
 
             db.commit()
@@ -493,14 +496,14 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
         
         elif event.type == 'invoice.payment_succeeded':
             invoice = event.data.object
-            if invoice.subscription: # This invoice is for a subscription
+            if invoice.subscription:  # This invoice is for a subscription
                 # Retrieve the subscription to ensure its status is up-to-date
                 try:
                     subscription = stripe.Subscription.retrieve(invoice.subscription)
                     if subscription.status == 'active':
                         user.subscribed = True
-                        if not user.date_subscribed or user.date_subscribed > datetime.utcfromtimestamp(subscription.start_date): # If re-subscribing or first time
-                             user.date_subscribed = datetime.utcfromtimestamp(subscription.start_date) if subscription.start_date else datetime.utcnow()
+                        if not user.date_subscribed or user.date_subscribed > datetime.utcfromtimestamp(subscription.start_date):  # If re-subscribing or first time
+                            user.date_subscribed = datetime.utcfromtimestamp(subscription.start_date) if subscription.start_date else datetime.utcnow()
                         user.date_subscription_expires = datetime.utcfromtimestamp(subscription.current_period_end) if subscription.current_period_end else datetime.utcnow() + timedelta(days=30)
                         user.activated = True
                         db.commit()
@@ -511,7 +514,7 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
         elif event.type == 'invoice.payment_failed':
             invoice = event.data.object
             if invoice.subscription:
-                 # Optionally update user status here, e.g., mark as past_due if subscription status reflects that
+                # Optionally update user status here, e.g., mark as past_due if subscription status reflects that
                 logger.warning(f"Webhook (invoice.payment_failed): Payment failed for invoice {invoice.id} (subscription {invoice.subscription}) for user {user.email}.")
                 # The customer.subscription.updated event should handle the subscription status change (e.g., to past_due or canceled)
 
@@ -525,6 +528,5 @@ async def handle_stripe_webhook(request: Request, db: Session = Depends(get_db))
         # Log the error and Stripe can retry if it's a transient issue on our side.
         # If it's a persistent data issue, manual intervention might be needed.
         return {"status": "error during processing, event logged"}
-
 
     return {"status": "success"}
