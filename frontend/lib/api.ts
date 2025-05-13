@@ -141,13 +141,11 @@ export interface SubscriptionResponse {
   date_subscription_expires: string
 }
 
-export const createSubscription = (
-  data: SubscriptionPayload
-): Promise<SubscriptionResponse> =>
-  api.post<SubscriptionResponse>('/subscription/', data).then(res => res.data)
+export const createSubscription = (data: SubscriptionPayload) =>
+  api.post<SubscriptionResponse>('/subscription', data).then(r => r.data)
 
-export const fetchSubscription = (): Promise<SubscriptionResponse> =>
-  api.get<SubscriptionResponse>('/subscription/').then(res => res.data)
+export const fetchSubscription = () =>
+  api.get<SubscriptionResponse>('/subscription').then(r => r.data)
 
 /* ──────────────────────────────────────────────────────────
    Branches
