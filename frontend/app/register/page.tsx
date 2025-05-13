@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { registerUser } from '@/lib/api'
+import { registerUser, loginUser } from '@/lib/api'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -18,7 +18,9 @@ export default function RegisterPage() {
     e.preventDefault()
     setError(null)
     setLoading(true)
+
     try {
+      // 1) Register the user
       await registerUser({
         full_name: fullName,
         address,
@@ -26,10 +28,15 @@ export default function RegisterPage() {
         company,
         password,
       })
-      // on success, redirect straight to subscription page
+
+      // 2) Immediately log them in to get a JWT
+      const { access_token } = await loginUser({ email, password })
+      localStorage.setItem('auth_token', access_token)
+
+      // 3) Redirect to subscription flow
       router.push('/subscription')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed.')
+      setError(err.response?.data?.detail || 'Registration or login failed.')
     } finally {
       setLoading(false)
     }
@@ -105,7 +112,6 @@ export default function RegisterPage() {
         </button>
       </form>
 
-      {/* Contact info for browser extension */}
       <p className="mt-6 text-sm text-gray-400">
         Contact: <a href="mailto:info@tullyedmvibe.com" className="underline">info@tullyedmvibe.com</a> for browser extension file and instructions
       </p>
