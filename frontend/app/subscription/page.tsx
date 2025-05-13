@@ -94,7 +94,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       // If subscription is successful
       if (response.subscribed) {
         setMessage(`✅ Subscription activated! Valid until ${new Date(response.date_subscription_expires).toLocaleDateString()}`)
-        setTimeout(() => router.push('/dashboard'), 2000)
+        setTimeout(() => router.push('/subscription/confirmation'), 2000)
       } else {
         setMessage('❌ Subscription not activated. Please try again.')
       }
