@@ -104,7 +104,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
 
   return (
     <div className="max-w-md mx-auto bg-gray-900 text-white p-6 mt-20 rounded-lg shadow">
-      <h2 className="text-xl mb-4 text-green-400 font-bold">Subscribe</h2>
+      <h2 className="text-xl mb-4 text-green-400 font-bold">Subscribe At $10 a Month Cancel Anytime</h2>
 
       <div className="space-y-4 mb-4">
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black">
