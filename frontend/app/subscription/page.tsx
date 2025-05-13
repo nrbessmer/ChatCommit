@@ -77,7 +77,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
         if (error) throw new Error(error.message)
 
         // Re-check subscription status
-        const check = await api.get<ExtendedSubscriptionResponse>('/subscription/')
+        const check = await api.get<ExtendedSubscriptionResponse>('/subscription')
         if (check.data.subscribed) {
           setMessage(`✅ Subscription activated! Valid until ${new Date(check.data.date_subscription_expires).toLocaleDateString()}`)
           setTimeout(() => router.push('/subscription/confirmation'), 1500)
