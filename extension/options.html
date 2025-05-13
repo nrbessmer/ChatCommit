@@ -45,45 +45,62 @@
       cursor: pointer;
     }
     #status {
-      margin-top: 8px;
+      margin-top: 16px;
+      padding: 8px;
+      border-radius: 6px;
       text-align: center;
+    }
+    .success {
+      background: #22c55e33;
+      color: #22c55e;
+    }
+    .error {
+      background: #ef444433;
+      color: #ef4444;
+    }
+    .info {
+      background: #3b82f633;
+      color: #3b82f6;
+    }
+    #tokenInfo {
+      word-break: break-all;
+      max-height: 100px;
+      overflow-y: auto;
+      background: #222;
+      padding: 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      margin-top: 10px;
+    }
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
   <h1>ChatCommit Options</h1>
-
-  <label>OpenAI API Key</label>
-  <input id="openai" type="text" placeholder="sk-..." />
-
-  <label>Backend Repo URL</label>
-  <input id="repoUrl" type="text" placeholder="https://chatcommit.fly.dev:8000" />
-
-  <label>Repo Hook (optional)</label>
-  <input id="repoHook" type="text" placeholder="(not used yet)" />
-
-  <button id="saveBtn">Save</button>
-  <div id="status"></div>
-
-  <script>
-    const fields = ["openai", "repoUrl", "repoHook"];
-    window.onload = () => {
-      chrome.storage.local.get(fields, (res) => {
-        document.getElementById("openai").value = res.openai || "";
-        document.getElementById("repoUrl").value = res.repoUrl || "https://chatcommit.fly.dev:8000";
-        document.getElementById("repoHook").value = res.repoHook || "";
-      });
-    };
-
-    document.getElementById("saveBtn").onclick = () => {
-      const openai = document.getElementById("openai").value.trim();
-      const repoUrl = document.getElementById("repoUrl").value.trim();
-      const repoHook = document.getElementById("repoHook").value.trim();
-
-      chrome.storage.local.set({ openai, repoUrl, repoHook }, () => {
-        document.getElementById("status").textContent = "✅ Settings saved!";
-      });
-    };
-  </script>
+  
+  <h2>API Settings</h2>
+  <div>
+    <label for="apiUrl">API URL:</label>
+    <input type="text" id="apiUrl" placeholder="https://chatcommit.fly.dev">
+    <button id="saveApiUrl">Save API URL</button>
+  </div>
+  
+  <h2>Authentication</h2>
+  <div>
+    <button id="checkToken">Check Current Token</button>
+    <button id="clearToken">Clear Token</button>
+    <button id="testEndpoint">Test API Connection</button>
+  </div>
+  
+  <div id="tokenSection" class="hidden">
+    <h3>Current Token:</h3>
+    <div id="tokenInfo"></div>
+  </div>
+  
+  <div id="status" class="hidden"></div>
+  
+  <script src="options.js"></script>
 </body>
 </html>

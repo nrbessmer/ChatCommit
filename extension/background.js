@@ -1,35 +1,67 @@
 // background.js
 console.log('[background] service worker starting');
 
-// Keep-alive ping
-chrome.alarms.create('keepAlive', { periodInMinutes: 1 });
-chrome.alarms.onAlarm.addListener(() => {
-  console.log('[background] keepAlive ping');
+// Helper: install/update the single dNR rule to include the current token
+async function updateAuthRule(token) {
+  if (!token) {
+    console.warn('[background] No token provided for rule update');
+    return;
+  }
+  
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [1],
+      addRules: [
+        {
+          id: 1,
+          priority: 1,
+          action: {
+            type: 'modifyHeaders',
+            requestHeaders: [
+              { header: 'Authorization', operation: 'set', value: `Bearer ${token}` }
+            ]
+          },
+          condition: {
+            urlFilter: 'https://chatcommit.fly.dev/*',
+            resourceTypes: ['xmlhttprequest']
+          }
+        }
+      ]
+    });
+    console.log('[background] declarativeNetRequest rule updated successfully');
+  } catch (e) {
+    console.error('[background] failed to update dNR rule', e);
+  }
+}
+
+// On install or update, apply any already‑stored token
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('[background] Extension installed/updated');
+  const { auth_token } = await chrome.storage.local.get('auth_token');
+  if (auth_token) {
+    console.log('[background] Found existing token, updating rule');
+    await updateAuthRule(auth_token);
+  } else {
+    console.log('[background] No token found during installation');
+  }
 });
 
-// Token injection removed — now handled only in popup.js
-// This avoids duplicate Authorization headers causing 401 errors
+// Add listener for runtime messages
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'updateToken' && message.token) {
+    console.log('[background] Received token update request');
+    updateAuthRule(message.token);
+    sendResponse({success: true});
+  }
+  return true;
+});
 
-// chrome.webRequest.onBeforeSendHeaders.addListener(
-//   async (details) => {
-//     console.log('[webRequest] intercept:', details.method, details.url);
-
-//     const storage = await chrome.storage.local.get('auth_token');
-//     const token   = storage.auth_token;
-
-//     if (!token) {
-//       console.warn('[webRequest] no auth_token in storage');
-//       return { requestHeaders: details.requestHeaders };
-//     }
-
-//     const headers = details.requestHeaders.filter(
-//       h => h.name.toLowerCase() !== 'authorization'
-//     );
-//     headers.push({ name: 'Authorization', value: `Bearer ${token}` });
-
-//     console.log('[webRequest] injected Authorization header');
-//     return { requestHeaders: headers };
-//   },
-//   { urls: ['https://chatcommit.fly.dev/*'] },
-//   ['blocking', 'requestHeaders']
-// );
+// Whenever popup.js saves a new token, re‑write the rule
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.auth_token) {
+    console.log('[background] Token changed in storage');
+    if (changes.auth_token.newValue) {
+      updateAuthRule(changes.auth_token.newValue);
+    }
+  }
+});
