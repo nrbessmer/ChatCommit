@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from .database import SessionLocal, engine, Base          # <- single dot
+from .database import SessionLocal, engine, Base, get_db   # ← re-add get_db
 from .models import User
 from app.routers.auth import get_current_user
 
