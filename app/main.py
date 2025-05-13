@@ -9,7 +9,7 @@ from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal, engine, Base          # <- single dot
-from ..models import User
+from .models import User
 from app.routers.auth import get_current_user
 
 # ─── Logger Setup ───────────────────────────────────────────
