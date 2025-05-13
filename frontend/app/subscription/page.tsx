@@ -57,14 +57,11 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       if (pmError) {
         throw new Error(pmError.message)
       }
-
       if (!paymentMethod) {
         throw new Error('Failed to create payment method')
       }
 
       setMessage('Setting up subscription...')
-      
-      // Include email in the request - this is critical!
       const response = await createSubscription({
         email,
         paymentMethodId: paymentMethod.id,
@@ -77,16 +74,13 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
         const { error } = await stripe.confirmCardPayment(
           response.payment_intent_client_secret
         )
-        
-        if (error) {
-          throw new Error(error.message)
-        }
-        
-        // Check subscription status again
-        const checkResponse = await api.get<ExtendedSubscriptionResponse>('/subscription/')
-        if (checkResponse.data.subscribed) {
-          setMessage(`✅ Subscription activated! Valid until ${new Date(checkResponse.data.date_subscription_expires).toLocaleDateString()}`)
-          setTimeout(() => router.push('/dashboard'), 2000)
+        if (error) throw new Error(error.message)
+
+        // Re-check subscription status
+        const check = await api.get<ExtendedSubscriptionResponse>('/subscription/')
+        if (check.data.subscribed) {
+          setMessage(`✅ Subscription activated! Valid until ${new Date(check.data.date_subscription_expires).toLocaleDateString()}`)
+          setTimeout(() => router.push('/subscription/confirmation'), 1500)
           return
         }
       }
@@ -94,22 +88,15 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       // If subscription is successful
       if (response.subscribed) {
         setMessage(`✅ Subscription activated! Valid until ${new Date(response.date_subscription_expires).toLocaleDateString()}`)
-        setTimeout(() => router.push('/subscription/confirmation'), 2000)
+        setTimeout(() => router.push('/subscription/confirmation'), 1500)
       } else {
         setMessage('❌ Subscription not activated. Please try again.')
       }
 
     } catch (e: any) {
       console.error('Subscription error:', e)
-      console.error('Response data:', e.response?.data)
-      
-      // Handle the specific payment_intent expansion error
-      if (e.response?.data?.detail?.includes("payment_intent")) {
-        setMessage("❌ There was an error processing your payment. Please try again later.")
-      } else {
-        const errorMessage = e.response?.data?.detail || e.message || 'Subscription failed'
-        setMessage(`❌ ${errorMessage}`)
-      }
+      const detail = e.response?.data?.detail || e.message || 'Subscription failed'
+      setMessage(`❌ ${detail}`)
     } finally {
       setLoading(false)
     }
@@ -122,29 +109,17 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       <div className="space-y-4 mb-4">
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black">
           <label className="block mb-1 text-gray-700">Card number</label>
-          <CardNumberElement
-            options={{
-              style: { base: { fontSize: '16px' } }
-            }}
-          />
+          <CardNumberElement options={{ style: { base: { fontSize: '16px' } } }} />
         </div>
 
         <div className="p-3 rounded border border-yellow-500 bg-yellow-100 text-black flex gap-4">
           <div className="flex-1">
             <label className="block mb-1 text-gray-700">Expiry</label>
-            <CardExpiryElement
-              options={{
-                style: { base: { fontSize: '16px' } }
-              }}
-            />
+            <CardExpiryElement options={{ style: { base: { fontSize: '16px' } } }} />
           </div>
           <div className="flex-1">
             <label className="block mb-1 text-gray-700">CVC</label>
-            <CardCvcElement
-              options={{
-                style: { base: { fontSize: '16px' } }
-              }}
-            />
+            <CardCvcElement options={{ style: { base: { fontSize: '16px' } } }} />
           </div>
         </div>
       </div>
@@ -158,7 +133,7 @@ function SubscriptionForm({ priceId }: { priceId: string }) {
       </button>
 
       {message && (
-        <div 
+        <div
           className={`mt-4 p-3 rounded text-sm ${
             message.startsWith('✅')
               ? 'bg-green-100 text-green-800'
@@ -187,20 +162,21 @@ export default function SubscriptionPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const email = localStorage.getItem('user_email')
-    if (!email) {
-      router.push('/login')
+    // 1) Guard: ensure we have a valid token before anything else
+    const token = localStorage.getItem('auth_token')
+    if (!token) {
+      router.replace('/login')
       return
     }
 
-    // Get Stripe config directly
+    // 2) Load Stripe config
     api.get<StripeConfig>('/stripe/config')
-      .then((res) => {
+      .then(res => {
         setPriceId(res.data.priceId)
         setStripePromise(loadStripe(res.data.publishableKey))
       })
-      .catch((error) => {
-        console.error('Failed to load Stripe config:', error)
+      .catch(err => {
+        console.error('Failed to load Stripe config:', err)
         setError('Failed to load payment configuration')
       })
       .finally(() => setChecking(false))
@@ -225,10 +201,7 @@ export default function SubscriptionPage() {
   return (
     <Elements
       stripe={stripePromise}
-      options={{
-        appearance: { theme: 'stripe' },
-        loader: 'auto',
-      }}
+      options={{ appearance: { theme: 'stripe' }, loader: 'auto' }}
     >
       <SubscriptionForm priceId={priceId} />
     </Elements>
