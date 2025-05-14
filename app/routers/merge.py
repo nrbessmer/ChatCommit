@@ -1,5 +1,11 @@
-from datetime import datetime, timezone  # Add this import!
+# app/routers/merge.py
+
+from datetime import datetime, timezone
+import uuid
+import hashlib
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -24,80 +30,87 @@ def merge_branches(
     current_user: User = Depends(get_current_user),
 ):
     if source_branch_id == target_branch_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot merge a branch into itself"
-        )
+        raise HTTPException(status_code=400, detail="Cannot merge a branch into itself")
 
-    # Load source and target, ensuring they belong to the user
-    src = (
-        db.query(Branch)
-          .filter(
-              Branch.id == source_branch_id,
-              Branch.owner_id == current_user.id,
-          )
-          .first()
-    )
-    dst = (
-        db.query(Branch)
-          .filter(
-              Branch.id == target_branch_id,
-              Branch.owner_id == current_user.id,
-          )
-          .first()
-    )
+    # 1) Load the two branches and verify ownership
+    src = db.query(Branch).filter(
+        Branch.id == source_branch_id,
+        Branch.owner_id == current_user.id,
+    ).first()
+    dst = db.query(Branch).filter(
+        Branch.id == target_branch_id,
+        Branch.owner_id == current_user.id,
+    ).first()
     if not src or not dst:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="One or both branches not found"
-        )
+        raise HTTPException(status_code=404, detail="One or both branches not found")
 
-    # Get all commits owned by the user
-    all_user_commits = (
+    # 2) Gather all your commits once
+    all_commits = (
         db.query(Commit)
           .filter(Commit.owner_id == current_user.id)
           .all()
     )
-    
-    # Find commits that should be on the source branch
-    # (either they already have the right branch_id or they're part of its ancestry)
+
+    # 3) Identify which commits “belong” to src by branch_id or ancestry
     src_commits = []
-    for commit in all_user_commits:
-        # If it's already marked as being on this branch
-        if commit.branch_id == source_branch_id:
-            src_commits.append(commit)
-        # Otherwise, fix the branch assignment if it's the head commit
-        elif commit.id == src.current_commit_id:
-            commit.branch_id = source_branch_id
-            src_commits.append(commit)
-    
-    # Gather existing hashes on the destination branch
-    dst_hashes = {
+    seen_ids = set()
+    for c in all_commits:
+        if c.branch_id == source_branch_id or c.id == src.current_commit_id:
+            if c.id not in seen_ids:
+                # ensure the head commit is marked correctly
+                if c.id == src.current_commit_id and c.branch_id != source_branch_id:
+                    c.branch_id = source_branch_id
+                src_commits.append(c)
+                seen_ids.add(c.id)
+
+    # 4) Build a set of original hashes already on dst
+    existing_hashes = {
         c.commit_hash
-        for c in all_user_commits
+        for c in all_commits
         if c.branch_id == target_branch_id
     }
 
-    merged = []
-    for c in src_commits:
-        if c.commit_hash not in dst_hashes:
-            new = Commit(
-                commit_hash=c.commit_hash,
-                commit_message=f"[MERGED] {c.commit_message}",
-                conversation_context=c.conversation_context,
-                created_at=datetime.now(timezone.utc),  # Add timestamp
-                branch_id=target_branch_id,
-                parent_commit_id=dst.current_commit_id,
-                owner_id=current_user.id,
-            )
-            db.add(new)
-            db.flush()
-            dst.current_commit_id = new.id
-            merged.append(c.commit_hash)
+    merged_hashes = []
+    for original in src_commits:
+        # skip if original commit was already pulled into dst
+        if original.commit_hash in existing_hashes:
+            continue
 
+        # build a unique hash for the merged commit
+        salt = uuid.uuid4().hex
+        sha_input = (
+            f"{datetime.now(timezone.utc).isoformat()}"
+            f"-MERGE-{original.commit_hash}"
+            f"-{salt}"
+        )
+        new_hash = hashlib.sha1(sha_input.encode()).hexdigest()
+
+        new_commit = Commit(
+            commit_hash=new_hash,
+            commit_message=f"[MERGED] {original.commit_message}",
+            conversation_context=original.conversation_context,
+            created_at=datetime.now(timezone.utc),
+            branch_id=target_branch_id,
+            parent_commit_id=dst.current_commit_id,
+            owner_id=current_user.id,
+        )
+        db.add(new_commit)
+
+        try:
+            db.flush()   # attempt INSERT
+        except IntegrityError:
+            db.rollback()  # skip duplicates (extremely unlikely with uuid4)
+            continue
+
+        # advance the destination branch head
+        dst.current_commit_id = new_commit.id
+        merged_hashes.append(new_hash)
+
+    # finally persist everything
     db.commit()
 
     return {
-        "message": f"Merged {len(merged)} commits from '{src.name}' → '{dst.name}'",
-        "merged_commits": merged,
+        "message": f"Merged {len(merged_hashes)} commit(s) "
+                   f"from '{src.name}' → '{dst.name}'",
+        "merged_commits": merged_hashes,
     }
