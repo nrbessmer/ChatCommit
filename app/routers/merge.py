@@ -83,6 +83,7 @@ def merge_branches(
                 commit_hash=c.commit_hash,
                 commit_message=f"[MERGED] {c.commit_message}",
                 conversation_context=c.conversation_context,
+                created_at=datetime.now(timezone.utc),  # ADD THIS LINE
                 branch_id=target_branch_id,
                 parent_commit_id=dst.current_commit_id,
                 owner_id=current_user.id,
