@@ -49,47 +49,57 @@ def root():
 def health():
     return {"status": "ok"}
 
-def fix_all_branches_and_commits():
-    """Fix all branch and commit relationships"""
-    db = SessionLocal()
+def initialize_default_branch() -> None:
+    """
+    Ensure the DB has an initial commit + 'main' branch.
+    """
+    db: Session = SessionLocal()
     try:
-        # Get all branches
-        branches = db.query(Branch).all()
+        # run only if branches table exists AND is still empty
+        branches_exist = db.execute(
+            text("SELECT 1 FROM sqlite_master "
+                 "WHERE type='table' AND name='branches'")
+        ).first()
         
-        for branch in branches:
-            # Get current head commit
-            if branch.current_commit_id:
-                # Update the head commit to point to correct branch
-                db.execute(
-                    text("UPDATE commits SET branch_id = :branch_id WHERE id = :commit_id"),
-                    {"branch_id": branch.id, "commit_id": branch.current_commit_id}
-                )
+        if branches_exist and db.query(Branch).count() == 0:
+            # Find the first user in the database to use as owner
+            first_user = db.query(User).first()
+            if not first_user:
+                print("⚠️ No users found in database - skipping branch creation")
+                return
                 
-                # Update parent commits that might be part of this branch
-                # but don't have branch_id set
-                parent_id = db.execute(
-                    text("SELECT parent_commit_id FROM commits WHERE id = :commit_id"),
-                    {"commit_id": branch.current_commit_id}
-                ).scalar()
-                
-                while parent_id:
-                    # Update this parent
-                    db.execute(
-                        text("UPDATE commits SET branch_id = :branch_id WHERE id = :commit_id"),
-                        {"branch_id": branch.id, "commit_id": parent_id}
-                    )
-                    
-                    # Get next parent
-                    parent_id = db.execute(
-                        text("SELECT parent_commit_id FROM commits WHERE id = :commit_id"),
-                        {"commit_id": parent_id}
-                    ).scalar()
-        
-        db.commit()
-        print("✅ Fixed all branch and commit relationships")
+            owner_id = first_user.id
+            
+            commit_hash = hashlib.sha1(b"init").hexdigest()
+            
+            init_commit = Commit(
+                commit_hash=commit_hash,
+                commit_message="init",
+                conversation_context={},
+                created_at=datetime.now(timezone.utc),
+                branch_id=None,  # Will update after branch creation
+                owner_id=owner_id,
+                parent_commit_id=None
+            )
+            db.add(init_commit)
+            db.flush()
+
+            main_branch = Branch(
+                name="main",
+                current_commit_id=init_commit.id,
+                owner_id=owner_id,
+            )
+            db.add(main_branch)
+            db.flush()
+            
+            # Update commit to point to this branch
+            init_commit.branch_id = main_branch.id
+            
+            db.commit()
+            print(f"✅ Created 'main' branch with initial commit {commit_hash}")
     except Exception as e:
         db.rollback()
-        print(f"❌ Error fixing relationships: {str(e)}")
+        print(f"⚠️ Failed to initialize default branch: {e}")
     finally:
         db.close()
 
