@@ -49,28 +49,51 @@ def root():
 def health():
     return {"status": "ok"}
 
+def initialize_default_branch() -> None:
+    """
+    Ensure the DB has an initial commit + 'main' branch.
+    They will be owned by user_id = 1 (change as needed).
+    """
+    SYSTEM_USER_ID = 1    # adjust or look up/create a “system” account
 
-def initialize_default_branch():
     db: Session = SessionLocal()
-    if db.execute(text(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='branches'"
-    )).first() and db.query(Branch).count() == 0:
-        commit_hash = hashlib.sha1(b"init").hexdigest()
-        init_commit = Commit(
-            commit_hash=commit_hash,
-            commit_message="init",
-            conversation_context={},
-            created_at=datetime.now(timezone.utc),
-            branch_id=None,
-        )
-        db.add(init_commit)
-        db.commit()
-        db.refresh(init_commit)
+    try:
+        # run only if branches table exists AND is still empty
+        branches_exist = db.execute(
+            text("SELECT 1 FROM sqlite_master "
+                 "WHERE type='table' AND name='branches'")
+        ).first()
+        if branches_exist and db.query(Branch).count() == 0:
+            # verify that the system user exists (optional)
+            if not db.get(User, SYSTEM_USER_ID):
+                raise RuntimeError(
+                    f"initialize_default_branch: user id {SYSTEM_USER_ID} "
+                    "does not exist"
+                )
 
-        main_branch = Branch(name="main", current_commit_id=init_commit.id)
-        db.add(main_branch)
-        db.commit()
-    db.close()
+            commit_hash = hashlib.sha1(b"init").hexdigest()
+
+            init_commit = Commit(
+                commit_hash=commit_hash,
+                commit_message="init",
+                conversation_context={},
+                created_at=datetime.now(timezone.utc),
+                branch_id=None,
+                owner_id=SYSTEM_USER_ID,          # ← set owner
+            )
+            db.add(init_commit)
+            db.commit()
+            db.refresh(init_commit)
+
+            main_branch = Branch(
+                name="main",
+                current_commit_id=init_commit.id,
+                owner_id=SYSTEM_USER_ID,          # ← set owner
+            )
+            db.add(main_branch)
+            db.commit()
+    finally:
+        db.close()
 
 @app.on_event("startup")
 def on_startup():
