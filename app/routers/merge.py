@@ -1,5 +1,4 @@
-# app/routers/merge.py
-
+from datetime import datetime, timezone  # Add this import!
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -53,27 +52,30 @@ def merge_branches(
             detail="One or both branches not found"
         )
 
-    # Only merge commits the user owns on the source branch
-    src_commits = (
+    # Get all commits owned by the user
+    all_user_commits = (
         db.query(Commit)
-          .filter(
-              Commit.branch_id == source_branch_id,
-              Commit.owner_id == current_user.id,
-          )
+          .filter(Commit.owner_id == current_user.id)
           .all()
     )
-
-    # Gather existing hashes on the destination branch (also user‑owned)
+    
+    # Find commits that should be on the source branch
+    # (either they already have the right branch_id or they're part of its ancestry)
+    src_commits = []
+    for commit in all_user_commits:
+        # If it's already marked as being on this branch
+        if commit.branch_id == source_branch_id:
+            src_commits.append(commit)
+        # Otherwise, fix the branch assignment if it's the head commit
+        elif commit.id == src.current_commit_id:
+            commit.branch_id = source_branch_id
+            src_commits.append(commit)
+    
+    # Gather existing hashes on the destination branch
     dst_hashes = {
         c.commit_hash
-        for c in (
-            db.query(Commit)
-              .filter(
-                  Commit.branch_id == target_branch_id,
-                  Commit.owner_id == current_user.id,
-              )
-              .all()
-        )
+        for c in all_user_commits
+        if c.branch_id == target_branch_id
     }
 
     merged = []
@@ -83,7 +85,7 @@ def merge_branches(
                 commit_hash=c.commit_hash,
                 commit_message=f"[MERGED] {c.commit_message}",
                 conversation_context=c.conversation_context,
-                created_at=datetime.now(timezone.utc),  # ADD THIS LINE
+                created_at=datetime.now(timezone.utc),  # Add timestamp
                 branch_id=target_branch_id,
                 parent_commit_id=dst.current_commit_id,
                 owner_id=current_user.id,

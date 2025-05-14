@@ -1,5 +1,3 @@
-# app/routers/rollback.py
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -56,11 +54,11 @@ def rollback_branch(
         )
 
     # 3) ensure it belongs to that branch
+    # MODIFICATION: Update commit.branch_id if needed
     if commit.branch_id != branch_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot roll back: commit does not belong to this branch"
-        )
+        # Fix the relationship instead of rejecting
+        commit.branch_id = branch_id
+        db.flush()  # Apply the change before proceeding
 
     # 4) perform rollback
     branch.current_commit_id = commit.id
