@@ -21,7 +21,7 @@ export default function ConfirmationPage() {
           <li>
             Documentation:{' '}
             <a
-              href="/ChatCommitManual.pdf"
+              href="https://chat-commit.vercel.app/ChatCommit%20Manual.pdf"
               download
               target="_blank"
               rel="noopener"
