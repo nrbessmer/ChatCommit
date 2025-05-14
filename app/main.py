@@ -57,41 +57,43 @@ def initialize_default_branch() -> None:
     
     db: Session = SessionLocal()
     try:
-        # Only run if branches table exists and is empty
+        # Check if branches table exists AND is empty
         branches_exist = db.execute(
             text("SELECT 1 FROM sqlite_master WHERE type='table' AND name='branches'")
         ).first()
         
         if branches_exist and db.query(Branch).count() == 0:
-            # Verify system user exists
-            if not db.get(User, SYSTEM_USER_ID):
-                raise RuntimeError(f"User id {SYSTEM_USER_ID} does not exist")
-                
-            # Create branch first
-            main_branch = Branch(
-                name="main",
-                current_commit_id=None,  # Will be updated
-                owner_id=SYSTEM_USER_ID,
-            )
-            db.add(main_branch)
-            db.flush()  # Get ID without committing transaction
-            
-            # Create init commit with branch_id
+            # Create initial commit
             commit_hash = hashlib.sha1(b"init").hexdigest()
             init_commit = Commit(
                 commit_hash=commit_hash,
                 commit_message="init",
                 conversation_context={},
                 created_at=datetime.now(timezone.utc),
-                branch_id=main_branch.id,  # Set branch_id properly
+                branch_id=None,  # Will update this after branch creation
                 owner_id=SYSTEM_USER_ID,
             )
             db.add(init_commit)
-            db.flush()
+            db.flush()  # Get the commit ID
             
-            # Update branch to point to commit
-            main_branch.current_commit_id = init_commit.id
+            # Create main branch pointing to the initial commit
+            main_branch = Branch(
+                name="main",
+                current_commit_id=init_commit.id,
+                owner_id=SYSTEM_USER_ID,
+            )
+            db.add(main_branch)
+            db.flush()  # Get the branch ID
+            
+            # Update the commit to point to the branch
+            init_commit.branch_id = main_branch.id
+            
+            # Commit the transaction
             db.commit()
+            print(f"✅ Created 'main' branch with initial commit {commit_hash}")
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Failed to initialize default branch: {str(e)}")
     finally:
         db.close()
 
