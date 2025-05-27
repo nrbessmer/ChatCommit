@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ChatCommit",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Git‑like version control for ChatGPT: commits, branches, merges, tags, and more.",
   "permissions": [
     "activeTab",
