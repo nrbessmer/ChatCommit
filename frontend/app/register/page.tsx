@@ -20,14 +20,8 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // 1) Register the user (auto-active & subscribed on backend)
-      await registerUser({
-        full_name: fullName,
-        address,
-        email,
-        company,
-        password,
-      })
+      // 1) Register the user (auto-activate & subscribe on backend)
+      await registerUser({ full_name: fullName, address, email, company, password })
 
       // 2) Immediately log them in to get a JWT
       const { access_token } = await loginUser({ email, password })
@@ -87,6 +81,7 @@ export default function RegisterPage() {
             type="text"
             value={company}
             onChange={e => setCompany(e.target.value)}
+            required
             className="w-full p-2 bg-gray-700 rounded"
           />
         </div>
@@ -110,14 +105,6 @@ export default function RegisterPage() {
           {loading ? 'Registering…' : 'Register'}
         </button>
       </form>
-
-      <p className="mt-6 text-sm text-gray-400">
-        Contact:{' '}
-        <a href="mailto:info@tullyedmvibe.com" className="underline">
-          info@tullyedmvibe.com
-        </a>{' '}
-        for browser extension file and instructions
-      </p>
     </div>
-)
+  )
 }
