@@ -14,6 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const VERCEL_BASE        = 'https://chat-commit.vercel.app';
 
   let lastScrapeData = null;
+    // track how many messages have been committed so far
+    let lastCommittedIndex = 0;
+    // load it from storage on startup
+    chrome.storage.local.get(LAST_COMMIT_KEY, ({ [LAST_COMMIT_KEY]: stored }) => {
+      lastCommittedIndex = Number(stored) || 0;
+      console.log('[init] lastCommittedIndex =', lastCommittedIndex);
+    });
 
   async function setToken(token) {
   await chrome.storage.local.set({ [STORAGE_KEY_TOKEN]: token });
@@ -213,35 +220,44 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(() => statusMsg.textContent = '❌ Copy failed');
   });
 
-  // ─── COMMIT ──────────────────────────────────────
+    // just after: let lastScrapeData = null;
+    let lastCommittedIndex = 0;
+    // load persisted index on startup
+    chrome.storage.local.get(LAST_COMMIT_KEY, ({ [LAST_COMMIT_KEY]: stored }) => {
+      lastCommittedIndex = Number(stored) || 0;
+      console.log('[init] lastCommittedIndex =', lastCommittedIndex);
+    });
+
+    // ─── COMMIT ──────────────────────────────────────
     document.getElementById('commit-btn')?.addEventListener('click', async () => {
+      // make sure we have up-to-date context
+      await scrapeChat();
+
       const base = await getBackend();
       const msg  = document.getElementById('message-input').value.trim();
+      const ctx  = lastScrapeData;
       const bid  = parseInt(document.getElementById('branch-select').value, 10);
       const tag  = document.getElementById('tag-input').value.trim();
 
-      // Grab the full array of scraped messages
-      const allMsgs = lastScrapeData?.messages;
-      if (!msg || !Array.isArray(allMsgs) || !allMsgs.length || !bid) {
+      if (!msg || !ctx?.messages?.length || !bid) {
         statusMsg.textContent = '❌ Missing commit data';
         return;
       }
 
-      // Determine what we've already committed
-      const lastIndex   = parseInt(localStorage.getItem(LAST_COMMIT_KEY) || '0', 10);
-      const newMessages = allMsgs.slice(lastIndex);
-      if (!newMessages.length) {
-        statusMsg.textContent = 'ℹ️ No new messages since last commit';
+      // slice only new messages
+      const newMessages = ctx.messages.slice(lastCommittedIndex);
+      if (newMessages.length === 0) {
+        statusMsg.textContent = '⚠️ No new messages to commit.';
         return;
       }
 
       try {
         const token = await getToken();
-        const resp  = await fetch(`${base}/commit/`, {
+        const resp = await fetch(`${base}/commit/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization:  `Bearer ${token}`
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({
             commit_message: msg,
@@ -254,29 +270,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const data = await resp.json().catch(() => null);
         if (!resp.ok) {
-          const errMsg = Array.isArray(data)
+          const detail = Array.isArray(data)
             ? data.map(e => `${e.loc.join('.')}: ${e.msg}`).join('; ')
             : data?.detail || JSON.stringify(data) || `HTTP ${resp.status}`;
-          throw new Error(errMsg);
+          throw new Error(detail);
         }
 
-        // Update high-water mark
-        localStorage.setItem(LAST_COMMIT_KEY, allMsgs.length.toString());
+        // reset index to the full count of scraped messages
+        lastCommittedIndex = ctx.messages.length;
+        chrome.storage.local.set({ [LAST_COMMIT_KEY]: lastCommittedIndex });
 
-        let out = `✅ Committed ${newMessages.length} msg(s) (#${data.commit_hash.slice(0,8)})`;
+        // display success
+        let out = `✅ Commit #${data.commit_hash.slice(0,8)} saved`;
+        statusMsg.textContent = out;
+
+        // optional tagging
         if (tag) {
           const tRes = await fetch(`${base}/tag/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization:  `Bearer ${token}`
+              Authorization: `Bearer ${token}`
             },
             body: JSON.stringify({ name: tag, commit_id: data.id })
           });
-          out += tRes.ok ? ' + Tag added' : ' + Tag failed';
+          statusMsg.textContent += tRes.ok ? ' + Tag added' : ' + Tag failed';
         }
-        statusMsg.textContent = out;
-        document.getElementById('message-input').value = '';
       } catch (err) {
         console.error('Commit error', err);
         statusMsg.textContent = `❌ Commit failed: ${err.message}`;
