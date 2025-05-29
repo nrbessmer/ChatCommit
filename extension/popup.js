@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   try {
     const base = await getBackend();
-    console.log(`[login] Using API base: ${base}`);
+    console.log(`[login] Using API base: ${base}/auth/users/login`);
     
     const resp = await fetch(`${base}/auth/users/login`, {
       method: 'POST',
@@ -220,14 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(() => statusMsg.textContent = '❌ Copy failed');
   });
 
-    // just after: let lastScrapeData = null;
-    let lastCommittedIndex = 0;
-    // load persisted index on startup
-    chrome.storage.local.get(LAST_COMMIT_KEY, ({ [LAST_COMMIT_KEY]: stored }) => {
-      lastCommittedIndex = Number(stored) || 0;
-      console.log('[init] lastCommittedIndex =', lastCommittedIndex);
-    });
-
+    
     // ─── COMMIT ──────────────────────────────────────
     document.getElementById('commit-btn')?.addEventListener('click', async () => {
       // make sure we have up-to-date context

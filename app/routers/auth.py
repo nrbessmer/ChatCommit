@@ -9,9 +9,10 @@ import jwt
 from jwt import PyJWTError
 from pydantic import BaseModel, EmailStr
 
-from ..database import get_db
-from ..models import User
-from ..schemas import (
+# Absolute imports
+from app.database import get_db
+from app.models import User
+from app.schemas import (
     UserRegister,
     UserActivate,
     UserActivateResponse,
@@ -23,8 +24,9 @@ SECRET_KEY = os.getenv("JWT_SECRET", secrets.token_hex(32))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
 
-router = APIRouter(tags=["auth"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/users/token")
+# Mount under /users
+router = APIRouter(prefix="/users", tags=["auth"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/token")
 
 # Use CryptContext instead of bcrypt directly
 pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
