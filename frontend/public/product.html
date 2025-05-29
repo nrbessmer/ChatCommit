@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatCommit Extension - Product Page</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f6fa; color: #333; margin: 0; padding: 0; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+    h1, h2, h3, h4 { color: #2f3640; }
+    h1 { margin-bottom: 8px; font-size: 2.5em; }
+    p { line-height: 1.6; margin-bottom: 16px; }
+    ul { margin-left: 20px; margin-bottom: 16px; }
+    img { max-width: 100%; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 16px; }
+    .step, .feature, .use-case, .faq-item, .roadmap-item { background: #fff; border: 1px solid #ccc; border-radius: 4px; padding: 16px; margin-bottom: 24px; }
+    .hero { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 32px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .cta { display: inline-block; background: #0984e3; color: #fff; padding: 12px 24px; border-radius: 4px; text-decoration: none; margin-top: 16px; }
+    .file-list { background: #fff; border: 1px dashed #aaa; padding: 16px; margin-bottom: 24px; }
+    code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+    .changelog, .roadmap { list-style: decimal inside; }
+    .footer { text-align: center; margin-top: 48px; font-size: 0.9em; color: #555; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ChatCommit Chrome Extension</h1>
+    <p><strong>© 2025 Tully EDM Vibe</strong> | Contact: <a href="mailto:info@tullyedmvibe.com">info@tullyedmvibe.com</a></p>
+
+    <div class="hero">
+      <h2>Git-style control for AI chats</h2>
+      <p>ChatCommit transforms ChatGPT into versioned, searchable conversations—snapshot with commits, spin off branches for experiments, merge insights back into your main dialogue.</p>
+      <p>Never lose a ChatGPT moment: Commit your chats like code, branch to explore “what-ifs,” merge the best responses, tag key insights—and revisit any version instantly.</p>
+      <p>Save snapshots as commits, create branches to test prompts, merge top ideas back into your main session, and tag your favorite moments.</p>
+      <a href="https://chat-commit.vercel.app/register" class="cta" target="_blank" rel="noopener">Register Now →</a>
+    </div>
+
+    <h2>📂 File Structure</h2>
+    <div class="file-list">
+      <ul>
+        <li><code>public/</code> – icons & screenshots (Chatcommit1.jpg…ChatCommit10.jpg)</li>
+        <li><code>popup.html</code>, <code>popup.css</code>, <code>popup.js</code> – extension UI</li>
+        <li><code>app/</code> – Next.js pages & components
+          <ul>
+            <li><code>app/commit/[id]/page.tsx</code> – commit details & export</li>
+            <li><code>app/branches/page.tsx</code> – branch listing</li>
+            <li><code>app/timeline/page.tsx</code> – timeline view</li>
+          </ul>
+        </li>
+        <li><code>components/</code> – TagForm.tsx, TagList.tsx</li>
+        <li><code>lib/api.ts</code> – API helpers</li>
+        <li><code>backend/</code> – FastAPI router, models, schemas</li>
+        <li><code>package.json</code>, <code>tsconfig.json</code>, <code>next.config.js</code></li>
+      </ul>
+    </div>
+
+    <h2>🔑 Key Features</h2>
+    <div class="feature">
+      <h3>Secure Login</h3>
+      <p>JWT authentication ensures your chat history stays private and secure.</p>
+    </div>
+    <div class="feature">
+      <h3>Branch Management</h3>
+      <p>View, create & switch branches seamlessly within the chat popup.</p>
+    </div>
+    <div class="feature">
+      <h3>Commit with Context</h3>
+      <p>Scrape ChatGPT messages and commit only new messages since your last commit. Exports to Word with styled Tahoma font and colored role bands.</p>
+    </div>
+    <div class="feature">
+      <h3>Tagging</h3>
+      <p>Label commits on the fly and filter by tag in the timeline.</p>
+    </div>
+    <div class="feature">
+      <h3>Timeline View</h3>
+      <p>Browse your entire commit history with filters by branch, tag, or date range.</p>
+    </div>
+    <div class="feature">
+      <h3>Merge & Rollback</h3>
+      <p>Merge branches or rollback to any previous commit with one click.</p>
+    </div>
+
+    <h2>📋 Use Cases</h2>
+    <div class="use-case">
+      <h3>Collaborative Drafts</h3>
+      <p>Track suggestions and revert to earlier chat drafts.</p>
+    </div>
+    <div class="use-case">
+      <h3>Experimenting Prompts</h3>
+      <p>Branch off different prompt strategies and merge best results.</p>
+    </div>
+    <div class="use-case">
+      <h3>Research & Analysis</h3>
+      <p>Snapshot research sessions and tag key insights for reports.</p>
+    </div>
+
+    <h2>📈 Roadmap</h2>
+    <ol class="roadmap">
+      <li class="roadmap-item"><strong>AI Summaries</strong> – auto-generate commit summaries.</li>
+      <li class="roadmap-item"><strong>Diff Viewer</strong> – compare chat snapshots visually.</li>
+      <li class="roadmap-item"><strong>Team Collaboration</strong> – share branches and tags with team.</li>
+      <li class="roadmap-item"><strong>Multi-Model Support</strong> – integrate other LLMs like GPT-4 Turbo.</li>
+    </ol>
+
+    <h2>❓ FAQ</h2>
+    <div class="faq-item">
+      <h4>Q: Which browsers are supported?</h4>
+      <p>A: Chrome, Edge, and other Chromium-based browsers (Firefox support coming soon).</p>
+    </div>
+    <div class="faq-item">
+      <h4>Q: Can I export commits to other formats?</h4>
+      <p>A: Currently Word (.docx) and CSV exports are supported; PDF coming soon.</p>
+    </div>
+    <div class="faq-item">
+      <h4>Q: How do I contribute?</h4>
+      <p>A: Submit PRs on <a href="https://github.com/yourusername/chatcommit" target="_blank">GitHub</a>. See CONTRIBUTING.md.</p>
+    </div>
+
+    <h2>📜 Changelog</h2>
+    <ol class="changelog">
+      <li>v1.0.0 – Initial release with commit, branch, merge, tag, timeline, export.</li>
+      <li>v1.1.0 – Added Word export styling and role band colors.</li>
+      <li>v1.2.0 – Improved UI and added context-only commit logic.</li>
+    </ol>
+
+    <h2>📁 Placement & Access</h2>
+    <ul>
+      <li>Place <code>product.html</code> in your <code>public/</code> folder.</li>
+      <li>Access via <code>https://&lt;your-vercel-domain&gt;/product.html</code> (e.g. <a href="https://chat-commit.vercel.app/product.html">chat-commit.vercel.app/product.html</a>).</li>
+      <li>For custom domain: <code>https://chatcommit.yourdomain.com/product.html</code>.</li>
+    </ul>
+
+    <h2>🚀 Installation & Deployment</h2>
+    <h3>Local Development</h3>
+    <ul>
+      <li><code>git clone https://github.com/yourusername/chatcommit.git</code></li>
+      <li><code>cd frontend && yarn install</code> &amp; <code>yarn dev</code></li>
+      <li><code>uvicorn backend.main:app --reload</code> for backend</li>
+    </ul>
+
+    <h3>Chrome Extension</h3>
+    <ul>
+      <li>Load <code>popup.html/css/js</code> and <code>public/</code> via Chrome’s <code>chrome://extensions</code>.</li>
+      <li>Pin the extension icon.</li>
+    </ul>
+
+    <h3>Production on Vercel</h3>
+    <ul>
+      <li>Connect GitHub repo to Vercel.</li>
+      <li>Configure env vars: <code>NEXT_PUBLIC_BACKEND_URL=https://chatcommit.fly.dev</code></li>
+      <li>Deploy; static assets served from <code>public/</code>.</li>
+    </ul>
+
+    <h3>Accessing the App</h3>
+    <ul>
+      <li>Front-end at <a href="https://chat-commit.vercel.app" target="_blank">chat-commit.vercel.app</a>.</li>
+      <li>API backend at <code>https://chatcommit.fly.dev</code>.</li>
+    </ul>
+
+    <div class="footer">
+      Built with ❤️ by Tully EDM Vibe. Visit our <a href="https://github.com/yourusername/chatcommit" target="_blank">GitHub</a> to contribute.
+    </div>
+  </div>
+</body>
+</html>
+
