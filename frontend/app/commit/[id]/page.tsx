@@ -67,13 +67,6 @@ export default function CommitDetailPage() {
 
   const exportToWord = async () => {
     const doc = new Document({
-      styles: {
-        default: {
-          run: {
-            font: 'Tahoma',
-          },
-        },
-      },
       sections: [{
         properties: {},
         children: [
