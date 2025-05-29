@@ -7,33 +7,92 @@
   <style>
     /* Reset & Base */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Tahoma', sans-serif; background: #f4f6f8; color: #1f2937; line-height: 1.6; }
+    /* Use Avenir Next for all text */
+    body, h1, h2, h3, h4, p, a, .card-content p, .card-content h3, .cta, footer {
+      font-family: "Avenir Next", Tahoma, Geneva, sans-serif;
+    }
+    body {
+      background: #f4f6f8;
+      color: #1f2937;
+      line-height: 1.6;
+    }
     a { color: #4f46e5; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .container { max-width: 1200px; margin: auto; padding: 40px 20px; }
-    h1, h2, h3, h4 { color: #111827; }
+
     /* Hero */
-    .hero { text-align: center; padding: 100px 20px; background: #9caf88; color: #fff; border-radius: 12px; }
+    .hero {
+      text-align: center;
+      padding: 100px 20px;
+      background: #9caf88;
+      color: #fff;
+      border-radius: 12px;
+    }
     .hero img.logo { width: 120px; height: auto; margin-bottom: 20px; }
-    .hero h1 { font-size: 3.5rem; margin-bottom: 20px; }
-    .hero p { font-size: 1.25rem; margin-bottom: 30px; max-width: 800px; margin: 0 auto 30px; }
-    .cta { background: #fbbf24; color: #1f2937; padding: 16px 32px; font-size: 1.1rem; border-radius: 8px; transition: background 0.3s; }
+    /* Title in Copperplate Bold and bright purple */
+    .hero h1 {
+      font-family: Copperplate, "Copperplate Gothic Bold", fantasy;
+      font-weight: bold;
+      font-size: 3.5rem;
+      color: #8000ff;
+      margin-bottom: 20px;
+    }
+    .hero p {
+      font-size: 1.25rem;
+      margin-bottom: 30px;
+      max-width: 800px;
+      margin: 0 auto 30px;
+    }
+    .cta {
+      background: #fbbf24;
+      color: #1f2937;
+      padding: 16px 32px;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      transition: background 0.3s;
+      display: inline-block;
+      margin-top: 10px;
+    }
     .cta:hover { background: #f59e0b; }
+
     /* Sections */
     section { margin-top: 80px; }
-    h2 { font-size: 2.5rem; margin-bottom: 24px; text-align: center; }
-    .features, .use-cases, .graphics { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px; }
-    .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden; padding: 20px; text-align: center; }
+    h2 { font-size: 2.5rem; margin-bottom: 24px; text-align: center; color: #111827; }
+    .features, .use-cases, .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      overflow: hidden;
+      padding: 20px;
+      text-align: center;
+    }
     .card-icon { font-size: 48px; margin-bottom: 16px; }
-    .card-content { font-family: 'Tahoma', sans-serif; }
+
+    /* Card text */
     .card-content h3 { font-size: 1.25rem; margin-bottom: 12px; }
     .card-content p { font-size: 1rem; color: #4b5563; }
-    /* Gallery */
-    .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 20px; }
-    .gallery img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .gallery img { width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+    /* Gallery Images */
+    .gallery img {
+      width: 100%;
+      max-height: 400px;
+      object-fit: cover;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
     /* Footer */
-    footer { text-align: center; margin: 100px 0 20px; font-size: 0.9rem; color: #6b7280; }
+    footer {
+      text-align: center;
+      margin: 100px 0 20px;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
   </style>
 </head>
 <body>
@@ -55,7 +114,7 @@
         <div class="card"><div class="card-icon">🏷️</div><div class="card-content"><h3>Tagging</h3><p>Label key insights and filter or search across your chat history with ease.</p></div></div>
         <div class="card"><div class="card-icon">📅</div><div class="card-content"><h3>Timeline</h3><p>Browse all commits in a filterable, date-based timeline for quick retrieval.</p></div></div>
         <div class="card"><div class="card-icon">🔀</div><div class="card-content"><h3>Merge & Rollback</h3><p>Combine branches or revert to any prior commit with a single click.</p></div></div>
-        <div class="card"><div class="card-icon">📤</div><div class="card-content"><h3>Export to Word</h3><p>Generate professional reports—styled Word documents with Tahoma font and colored role bands.</p></div></div>
+        <div class="card"><div class="card-icon">📤</div><div class="card-content"><h3>Export to Word</h3><p>Generate professional reports—styled Word documents with your chosen font and colored role bands.</p></div></div>
       </div>
     </section>
 
@@ -67,6 +126,8 @@
         <div class="card"><div class="card-icon">🔍</div><div class="card-content"><h3>Prompt Engineering</h3><p>Branch off alternate prompts and compare outcomes before choosing the best.</p></div></div>
         <div class="card"><div class="card-icon">📊</div><div class="card-content"><h3>Research & Analysis</h3><p>Snapshot research sessions, tag findings, and export for citations or dashboard integration.</p></div></div>
         <div class="card"><div class="card-icon">📚</div><div class="card-content"><h3>Learning & Documentation</h3><p>Preserve AI-assisted workflows for training materials or project documentation.</p></div></div>
+        <div class="card"><div class="card-icon">💼</div><div class="card-content"><h3>Knowledge Management</h3><p>Maintain an organized, searchable archive of past chat sessions for institutional memory.</p></div></div>
+        <div class="card"><div class="card-icon">🎧</div><div class="card-content"><h3>Customer Support</h3><p>Record support conversations, tag resolutions, and export transcripts for compliance and training.</p></div></div>
       </div>
     </section>
 
@@ -78,16 +139,18 @@
         <img src="ChatCommit87.jpg" alt="Raw JSON view">
         <img src="ChatCommit10.jpg" alt="Rollback screen">
         <img src="ChatCommit9.jpg" alt="Merge screen">
-        <img src="ChatCommit7.jpg" alt="Timeline view">
-        <img src="ChatCommit6.jpg" alt="Commit details">
-        <img src="ChatCommit5.jpg" alt="Branch view">
-        <img src="ChatCommit4.jpg" alt="Branches list">
+        <img src="ChatCommit7.jpg" alt="Timeline View">
+        <img src="ChatCommit6.jpg" alt="Commit Details">
+        <img src="ChatCommit5.jpg" alt="Branch View">
+        <img src="ChatCommit4.jpg" alt="Branches List">
+        <img src="ChatCommit3.jpg" alt="Commit Example">
+        <img src="ChatCommit2.jpg" alt="Context Example">
       </div>
     </section>
 
     <!-- Footer -->
     <footer>
-      <p>© 2025 Tully EDM Vibe. All rights reserved.</p>
+      <p>© 2025 Tully EDM Vibe. All rights reserved. info@tullyedmvibe.com</p>
     </footer>
   </div>
 </body>
