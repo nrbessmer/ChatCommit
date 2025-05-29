@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import TagForm from '@/components/TagForm';
 import TagList from '@/components/TagList';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
 import { saveAs } from 'file-saver';
 
 interface CommitData {
@@ -63,20 +63,43 @@ export default function CommitDetailPage() {
       sections: [{
         properties: {},
         children: [
-          new Paragraph({ children: [ new TextRun({ text: `Commit Hash: ${commit.commit_hash}`, bold: true }) ] }),
-          new Paragraph({ children: [ new TextRun(`Message: ${commit.commit_message}`) ] }),
-          new Paragraph({ children: [ new TextRun(`Created At: ${new Date(commit.created_at).toLocaleString()}`) ] }),
-          new Paragraph({ children: [ new TextRun({ text: 'Conversation:', bold: true }) ] }),
-          ...msgs.map(m =>
-            new Paragraph({ children: [ new TextRun(m) ] })
-          ),
-          new Paragraph({ children: [ new TextRun({ text: 'Tags:', bold: true }) ] }),
-          ...tags.map(t =>
-            new Paragraph({ children: [ new TextRun(t.name) ] })
-          )
+          // Title
+          new Paragraph({
+            text: 'Commit Details',
+            heading: HeadingLevel.HEADING_1,
+          }),
+          new Paragraph({}),
+          // Metadata
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Hash: ', bold: true }),
+              new TextRun({ text: commit.commit_hash })
+            ]
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Message: ', bold: true }),
+              new TextRun({ text: commit.commit_message })
+            ]
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: 'Created At: ', bold: true }),
+              new TextRun({ text: new Date(commit.created_at).toLocaleString() })
+            ]
+          }),
+          new Paragraph({}),
+          // Conversation
+          new Paragraph({ text: 'Conversation', heading: HeadingLevel.HEADING_2 }),
+          ...msgs.map(m => new Paragraph({ text: m, bullet: { level: 0 } })),
+          new Paragraph({}),
+          // Tags
+          new Paragraph({ text: 'Tags', heading: HeadingLevel.HEADING_2 }),
+          ...tags.map(t => new Paragraph({ text: t.name, bullet: { level: 0 } })),
         ]
       }]
     });
+
     const blob = await Packer.toBlob(doc);
     saveAs(blob, `commit-${commit.commit_hash.slice(0,8)}.docx`);
   };
