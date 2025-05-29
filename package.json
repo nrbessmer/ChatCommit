@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.5",
+    "@types/file-saver": "^2.0.7",
     "@types/qs": "^6.9.18",
     "eslint-config-next": "^15.2.4"
   }
