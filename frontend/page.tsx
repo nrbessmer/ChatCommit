@@ -1,75 +1,48 @@
-'use client';
+// frontend/app/subscription/confirmation/page.tsx
 
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+'use client'
 
-interface Commit {
-  id: number;
-  commit_hash: string;
-  commit_message: string;
-  created_at: string;
-  branch_id?: number;
-}
+import React from 'react'
 
-export default function HomePage() {
-  const [commits, setCommits] = useState<Commit[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>('');
-  const [activeBranchId, setActiveBranchId] = useState<number | null>(null);
-
-  // Load branch ID from localStorage
-  useEffect(() => {
-    const storedBranchId = localStorage.getItem('activeBranchId');
-    if (storedBranchId) {
-      setActiveBranchId(Number(storedBranchId));
-    }
-  }, []);
-
-  // Fetch commits for the active branch
-  useEffect(() => {
-    if (activeBranchId !== null) {
-      axios
-        .get<Commit[]>(`https://chatcommit.fly.dev/branch/${activeBranchId}/commits`)
-        .then((res) => {
-          setCommits(res.data);
-        })
-        .catch((err: unknown) => {
-          console.error('Error fetching commits:', err);
-          setError('Failed to load commits.');
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [activeBranchId]);
-
+export default function ConfirmationPage() {
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">
-        Commits for Branch {activeBranchId ?? '(none selected)'}
-      </h2>
-
-      {loading && <p className="text-gray-500">Loading...</p>}
-      {error && <p className="text-red-500">{error}</p>}
-
-      {commits.length > 0 ? (
-        commits.map((commit) => (
-          <div
-            key={commit.id}
-            className="border p-4 mb-3 rounded bg-white shadow-sm"
-          >
-            <div className="text-sm font-mono text-gray-700">
-              {commit.commit_hash}
-            </div>
-            <div className="text-md font-semibold my-1">
-              {commit.commit_message}
-            </div>
-            <div className="text-xs text-gray-500">
-              {new Date(commit.created_at).toLocaleString()}
-            </div>
-          </div>
-        ))
-      ) : (
-        !loading && <p className="text-gray-500">No commits found for this branch.</p>
-      )}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
+      <div className="max-w-lg text-center bg-gray-800 p-8 rounded-lg shadow">
+        <h1 className="text-2xl font-bold mb-4 text-green-400">
+          Thank You for Your Purchase
+        </h1>
+        <p className="mb-6">
+          Thank you for your purchase. You can reach us at{' '}
+          <a href="mailto:info@tullyedmvibe.com" className="text-yellow-300 hover:underline">
+            info@tullyedmvibe.com
+          </a>.
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-left">
+          <li>
+            Documentation:{' '}
+            <a
+              href="https://chat-commit.vercel.app/ChatCommit%20Manual.pdf"
+              download
+              target="_blank"
+              rel="noopener"
+              className="text-blue-400 hover:underline"
+            >
+              Download ChatCommit Manual
+            </a>
+          </li>
+          <li>
+            Extension Store:{' '}
+            <a
+              href="https://chrome.google.com/webstore/detail/<YOUR-EXTENSION-ID>"
+              target="_blank"
+              rel="noopener"
+              className="text-blue-400 hover:underline"
+            >
+              Install from Chrome Web Store
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
-  );
+  )
 }
