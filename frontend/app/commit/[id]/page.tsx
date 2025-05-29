@@ -1,4 +1,3 @@
-// app/commit/[id]/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
 import TagForm from '@/components/TagForm';
 import TagList from '@/components/TagList';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { saveAs } from 'file-saver';
 
 interface CommitData {
   id: number;
@@ -57,6 +58,29 @@ export default function CommitDetailPage() {
 
   const msgs = commit.conversation_context.messages || [];
 
+  const exportToWord = async () => {
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          new Paragraph({ children: [ new TextRun({ text: `Commit Hash: ${commit.commit_hash}`, bold: true }) ] }),
+          new Paragraph({ children: [ new TextRun(`Message: ${commit.commit_message}`) ] }),
+          new Paragraph({ children: [ new TextRun(`Created At: ${new Date(commit.created_at).toLocaleString()}`) ] }),
+          new Paragraph({ children: [ new TextRun({ text: 'Conversation:', bold: true }) ] }),
+          ...msgs.map(m =>
+            new Paragraph({ children: [ new TextRun(m) ] })
+          ),
+          new Paragraph({ children: [ new TextRun({ text: 'Tags:', bold: true }) ] }),
+          ...tags.map(t =>
+            new Paragraph({ children: [ new TextRun(t.name) ] })
+          )
+        ]
+      }]
+    });
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `commit-${commit.commit_hash.slice(0,8)}.docx`);
+  };
+
   return (
     <div className="max-w-3xl mx-auto p-6 bg-gray-900 text-gray-100 rounded-md">
       <button
@@ -67,6 +91,14 @@ export default function CommitDetailPage() {
       </button>
 
       <h1 className="text-2xl font-bold mb-4">Commit Details</h1>
+
+      <button
+        className="mb-4 bg-green-600 text-white px-3 py-1 rounded"
+        onClick={exportToWord}
+      >
+        📄 Export to Word
+      </button>
+
       <div className="p-4 rounded border border-gray-700 bg-gray-800 mb-6">
         <p className="text-gray-400 text-sm mb-1">Hash:</p>
         <p className="font-mono text-blue-300 text-sm mb-3">{commit.commit_hash}</p>
@@ -87,13 +119,13 @@ export default function CommitDetailPage() {
         <div className="flex gap-2 mb-4">
           <button
             className="bg-green-600 text-white px-3 py-1 rounded"
-            onClick={() => setShowPretty((v) => !v)}
+            onClick={() => setShowPretty(v => !v)}
           >
             {showPretty ? 'Hide Messages' : 'Show Messages'}
           </button>
           <button
             className="bg-blue-600 text-white px-3 py-1 rounded"
-            onClick={() => setShowRawJson((v) => !v)}
+            onClick={() => setShowRawJson(v => !v)}
           >
             {showRawJson ? 'Hide Raw JSON' : 'Show Raw JSON'}
           </button>

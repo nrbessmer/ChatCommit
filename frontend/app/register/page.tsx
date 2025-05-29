@@ -20,7 +20,7 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      // 1) Register the user
+      // 1) Register the user (auto-active & subscribed on backend)
       await registerUser({
         full_name: fullName,
         address,
@@ -33,8 +33,8 @@ export default function RegisterPage() {
       const { access_token } = await loginUser({ email, password })
       localStorage.setItem('auth_token', access_token)
 
-      // 3) Redirect to subscription flow
-      router.push('/subscription')
+      // 3) Skip subscription flow (users are now auto-subscribed)
+      // router.push('/subscription')
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration or login failed.')
     } finally {
@@ -113,7 +113,11 @@ export default function RegisterPage() {
       </form>
 
       <p className="mt-6 text-sm text-gray-400">
-        Contact: <a href="mailto:info@tullyedmvibe.com" className="underline">info@tullyedmvibe.com</a> for browser extension file and instructions
+        Contact:{' '}
+        <a href="mailto:info@tullyedmvibe.com" className="underline">
+          info@tullyedmvibe.com
+        </a>{' '}
+        for browser extension file and instructions
       </p>
     </div>
   )

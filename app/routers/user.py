@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 import secrets, os
+from datetime import datetime, timedelta
 
 from ..database import get_db
 from ..models import User
@@ -42,8 +43,7 @@ def send_activation_email(to_email: str, token: str):
     fm = FastMail(conf)
     fm.send_message(message)
 
-
-@router.post("/register")
+@router.post("/register", response_model=UserRegisterResponse)
 async def register_user(
     payload: UserRegister,
     background_tasks: BackgroundTasks,
@@ -52,6 +52,7 @@ async def register_user(
     # 1) ensure unique
     if db.query(User).filter_by(email=payload.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
+
     # 2) hash + token
     pw_hash = pwd_ctx.hash(payload.password)
     token   = secrets.token_urlsafe(32)
@@ -65,14 +66,24 @@ async def register_user(
     )
     db.add(user)
     db.commit()
+    db.refresh(user)
 
-    # 3) send activation link in background
+    # 3) activate & subscribe immediately
+    user.activated                     = True
+    user.subscribed                    = True
+    user.date_subscribed               = datetime.utcnow()
+    user.date_subscription_expires     = datetime.utcnow() + timedelta(days=365)
+    db.commit()
+
+    # 4) send activation link in background
     background_tasks.add_task(send_activation_email, payload.email, token)
 
-    # 4) redirect to subscription page
-    subscription_url = f"{os.getenv('FRONTEND_URL')}/subscription"
-    return RedirectResponse(url=subscription_url, status_code=status.HTTP_303_SEE_OTHER)
+    # 5) redirect to subscription page (commented out per request)
+    # subscription_url = f"{os.getenv('FRONTEND_URL')}/subscription"
+    # return RedirectResponse(url=subscription_url, status_code=status.HTTP_303_SEE_OTHER)
 
+    # 6) return the newly created user
+    return UserRegisterResponse.from_orm(user)
 
 @router.post("/activate", response_model=UserActivateResponse)
 def activate_user(

@@ -1,6 +1,6 @@
 // popup.js
 console.log('[popup.js] loaded');
-
+const LAST_COMMIT_KEY = 'last_commit_index';
 document.addEventListener('DOMContentLoaded', () => {
   const loginPanel     = document.getElementById('login-panel');
   const mainPanel      = document.getElementById('main-panel');
@@ -214,55 +214,74 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ─── COMMIT ──────────────────────────────────────
-  document.getElementById('commit-btn')?.addEventListener('click', async () => {
-    const base   = await getBackend();
-    const msg    = document.getElementById('message-input').value.trim();
-    const ctx    = lastScrapeData;
-    const bid    = parseInt(document.getElementById('branch-select').value, 10);
-    const tag    = document.getElementById('tag-input').value.trim();
-    if (!msg || !ctx?.messages?.length || !bid) {
-      statusMsg.textContent = '❌ Missing commit data';
-      return;
-    }
-    try {
-      const token = await getToken();
-      const resp  = await fetch(`${base}/commit/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization:  `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          commit_message: msg,
-          conversation_context: { messages: ctx.messages.map(m => `${m.role}: ${m.text}`) },
-          branch_id: bid
-        })
-      });
-      const data = await resp.json().catch(() => null);
-      if (!resp.ok) {
-        const errMsg = Array.isArray(data)
-          ? data.map(e => `${e.loc.join('.')}: ${e.msg}`).join('; ')
-          : data?.detail || JSON.stringify(data) || `HTTP ${resp.status}`;
-        throw new Error(errMsg);
+    document.getElementById('commit-btn')?.addEventListener('click', async () => {
+      const base = await getBackend();
+      const msg  = document.getElementById('message-input').value.trim();
+      const bid  = parseInt(document.getElementById('branch-select').value, 10);
+      const tag  = document.getElementById('tag-input').value.trim();
+
+      // Grab the full array of scraped messages
+      const allMsgs = lastScrapeData?.messages;
+      if (!msg || !Array.isArray(allMsgs) || !allMsgs.length || !bid) {
+        statusMsg.textContent = '❌ Missing commit data';
+        return;
       }
-      let out = `✅ Commit #${data.commit_hash.slice(0,8)} saved`;
-      if (tag) {
-        const tRes = await fetch(`${base}/tag/`, {
+
+      // Determine what we've already committed
+      const lastIndex   = parseInt(localStorage.getItem(LAST_COMMIT_KEY) || '0', 10);
+      const newMessages = allMsgs.slice(lastIndex);
+      if (!newMessages.length) {
+        statusMsg.textContent = 'ℹ️ No new messages since last commit';
+        return;
+      }
+
+      try {
+        const token = await getToken();
+        const resp  = await fetch(`${base}/commit/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization:   `Bearer ${token}`
+            Authorization:  `Bearer ${token}`
           },
-          body: JSON.stringify({ name: tag, commit_id: data.id })
+          body: JSON.stringify({
+            commit_message: msg,
+            conversation_context: {
+              messages: newMessages.map(m => `${m.role}: ${m.text}`)
+            },
+            branch_id: bid
+          })
         });
-        out += tRes.ok ? ' + Tag added' : ' + Tag failed';
+
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) {
+          const errMsg = Array.isArray(data)
+            ? data.map(e => `${e.loc.join('.')}: ${e.msg}`).join('; ')
+            : data?.detail || JSON.stringify(data) || `HTTP ${resp.status}`;
+          throw new Error(errMsg);
+        }
+
+        // Update high-water mark
+        localStorage.setItem(LAST_COMMIT_KEY, allMsgs.length.toString());
+
+        let out = `✅ Committed ${newMessages.length} msg(s) (#${data.commit_hash.slice(0,8)})`;
+        if (tag) {
+          const tRes = await fetch(`${base}/tag/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization:  `Bearer ${token}`
+            },
+            body: JSON.stringify({ name: tag, commit_id: data.id })
+          });
+          out += tRes.ok ? ' + Tag added' : ' + Tag failed';
+        }
+        statusMsg.textContent = out;
+        document.getElementById('message-input').value = '';
+      } catch (err) {
+        console.error('Commit error', err);
+        statusMsg.textContent = `❌ Commit failed: ${err.message}`;
       }
-      statusMsg.textContent = out;
-    } catch (err) {
-      console.error('Commit error', err);
-      statusMsg.textContent = `❌ Commit failed: ${err.message}`;
-    }
-  });
+    });
 
   // ─── CREATE BRANCH ──────────────────────────────
   document.getElementById('create-branch')?.addEventListener('click', async () => {
