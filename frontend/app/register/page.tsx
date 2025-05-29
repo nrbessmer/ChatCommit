@@ -33,8 +33,8 @@ export default function RegisterPage() {
       const { access_token } = await loginUser({ email, password })
       localStorage.setItem('auth_token', access_token)
 
-      // 3) Skip subscription flow (users are now auto-subscribed)
-      // router.push('/subscription')
+      // 3) Skip subscription flow and go to the main dashboard
+      router.push('/')
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Registration or login failed.')
     } finally {
@@ -87,7 +87,6 @@ export default function RegisterPage() {
             type="text"
             value={company}
             onChange={e => setCompany(e.target.value)}
-            required
             className="w-full p-2 bg-gray-700 rounded"
           />
         </div>
@@ -120,5 +119,5 @@ export default function RegisterPage() {
         for browser extension file and instructions
       </p>
     </div>
-  )
+)
 }
