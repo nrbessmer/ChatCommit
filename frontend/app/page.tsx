@@ -1,55 +1,48 @@
-// frontend/app/page.tsx
+// frontend/app/subscription/confirmation/page.tsx
+
 'use client'
 
-import { useEffect, useState } from 'react'
-import CommitCard from '@/components/CommitCard'
-import { fetchBranchCommits, Commit as ApiCommit } from '@/lib/api'
+import React from 'react'
 
-type Commit = ApiCommit
-
-export default function HomePage() {
-  const [commits, setCommits] = useState<Commit[]>([])
-  const [error, setError] = useState<string>('')
-  const [loading, setLoading] = useState<boolean>(false)
-  const [activeBranchId, setActiveBranchId] = useState<number | null>(null)
-
-  // load last‐used branch
-  useEffect(() => {
-    const stored = window.localStorage.getItem('activeBranchId')
-    if (stored) setActiveBranchId(Number(stored))
-  }, [])
-
-  // fetch commits whenever branch changes
-  useEffect(() => {
-    if (activeBranchId !== null) {
-      setLoading(true)
-      fetchBranchCommits(activeBranchId)
-        .then(data => {
-          setCommits(data)
-        })
-        .catch(err => {
-          console.error(err)
-          setError('Failed to load commits.')
-        })
-        .finally(() => setLoading(false))
-    }
-  }, [activeBranchId])
-
+export default function ConfirmationPage() {
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h2 className="text-2xl font-bold mb-4">
-        Commits for Branch {activeBranchId ?? '(none selected)'}
-      </h2>
-
-      {loading && <p className="text-gray-500">Loading…</p>}
-      {error && <p className="text-red-500">{error}</p>}
-      {!loading && commits.length === 0 && (
-        <p className="text-gray-500">No commits found for this branch.</p>
-      )}
-
-      {commits.map(commit => (
-        <CommitCard key={commit.id} {...commit} />
-      ))}
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white p-6">
+      <div className="max-w-lg text-center bg-gray-800 p-8 rounded-lg shadow">
+        <h1 className="text-2xl font-bold mb-4 text-green-400">
+          Thank You for Your Purchase
+        </h1>
+        <p className="mb-6">
+          Thank you for your purchase. You can reach us at{' '}
+          <a href="mailto:info@tullyedmvibe.com" className="text-yellow-300 hover:underline">
+            info@tullyedmvibe.com
+          </a>.
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-left">
+          <li>
+            Documentation:{' '}
+            <a
+              href="https://chat-commit.vercel.app/ChatCommit%20Manual.pdf"
+              download
+              target="_blank"
+              rel="noopener"
+              className="text-blue-400 hover:underline"
+            >
+              Download ChatCommit Manual
+            </a>
+          </li>
+          <li>
+            Extension Store:{' '}
+            <a
+              href="https://chrome.google.com/webstore/detail/<YOUR-EXTENSION-ID>"
+              target="_blank"
+              rel="noopener"
+              className="text-blue-400 hover:underline"
+            >
+              Install from Chrome Web Store
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
   )
 }
