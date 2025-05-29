@@ -1,0 +1,126 @@
+/* popup.css */
+
+/* Base reset & Inter font */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 650px;
+  height: 900px;
+  padding: 16px;
+  background: #f5f6fa;
+  font-family: 'Inter', sans-serif;
+  color: #333;
+}
+
+/* Containers */
+.container {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.header {
+  font-size: 24px;
+  font-weight: 600;
+  color: #2f3640;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* Fieldsets */
+fieldset {
+  border: 1px solid #dcdde1;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+legend {
+  font-weight: 500;
+  color: #353b48;
+  margin-bottom: 8px;
+}
+
+/* Labels & Inputs */
+label {
+  display: block;
+  font-size: 14px;
+  margin: 8px 0 4px;
+  color: #2f3640;
+}
+input[type="text"], input[type="password"], select, textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #dcdde1;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 8px;
+  background: #f5f6fa;
+}
+textarea { resize: vertical; }
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.btn.small { width: 48%; }
+.btn.primary { background: #0984e3; color: #fff; }
+.btn.danger  { background: #d63031; color: #fff; }
+.btn.default { background: #dfe6e9; color: #2d3436; }
+
+.button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Messages */
+.message {
+  font-size: 12px;
+  color: #e17055;
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* Merge panel overflow */
+#merge-panel {
+  max-height: 60vh;
+  overflow: auto;
+}
+#merge-panel select, #merge-panel button {
+  margin: 0 auto 12px;
+  display: block;
+}
+
+/* Context table styling */
+#context-table {
+  width: 100%;
+  border-collapse: collapse;
+  display: block;
+  max-height: calc(1.5em * 20 + 8px);
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+#context-table tr:nth-child(odd) td {
+  background: #e0f7fa; /* blue for user */
+}
+#context-table tr:nth-child(even) td {
+  background: #e8f5e9; /* green for AI */
+}
+#context-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid #ccc;
+}
+#context-container {
+  resize: vertical;
+  min-height: 120px;
+  max-height: 250px;
+  overflow: auto;
+}

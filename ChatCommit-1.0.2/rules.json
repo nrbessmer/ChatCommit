@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "Authorization",
+          "operation": "set",
+          "value": "Bearer YOUR_TOKEN_HERE"  // This is empty in your file
+        }
+      ]
+    },
+    "condition": {
+      "urlFilter": "https://chatcommit.fly.dev/*",
+      "resourceTypes": ["xmlhttprequest"]  // Add this to match background.js
+    }
+  }
+]

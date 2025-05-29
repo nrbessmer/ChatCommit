@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ChatCommit</title>
+  <link rel="stylesheet" href="popup.css" />
+  <style>
+    /* 1. Scale UI up by ~20% */
+    html, body {
+      width: 720px;
+      height: 1008px;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      background: #f5f6fa;
+      overflow: hidden;
+    }
+
+    /* 2. Logo styling */
+    .logo {
+      display: block;
+      margin: 0 auto 12px;
+      width: 120px;
+      height: 120px;
+    }
+
+    .container {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 16px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .header {
+      text-align: center;
+      font-size: 1.5em;
+      margin-bottom: 12px;
+      color: #2f3640;
+    }
+
+    button, .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-weight: 600;
+    }
+    .primary { background: #0984e3; color: white; }
+    .blue    { background: #74b9ff; color: white; }
+    .green   { background: #00b894; color: white; }
+    .red     { background: #d63031; color: white; }
+    .purple  { background: #6c5ce7; color: white; }
+
+    .button-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    label { display: block; margin: 8px 0 4px; color: #2f3640; }
+    input, textarea, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px;
+      border: 1px solid #dcdde1;
+      border-radius: 4px;
+      font-size: 0.9em;
+      margin-bottom: 8px;
+    }
+
+    /* 3. Commit‑message font larger */
+    #message-input {
+      font-size: 1.1em;
+      line-height: 1.4em;
+    }
+
+    /* Context area */
+    #context-container {
+      height: 200px;
+      overflow: auto;
+      border: 1px solid #dcdde1;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 4px; border-bottom: 1px solid #eee; }
+    .user-row td { background: #dfe6e9; font-weight: bold; }
+    .ai-row   td { background: #f1f2f6; }
+
+    /* Merge panel */
+    #merge-panel {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      max-height: 60vh;
+      overflow: auto;
+      width: 90%;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      padding: 16px;
+      border-radius: 8px;
+      display: none;
+    }
+    #merge-panel.open { display: block; }
+    #merge-panel select, #merge-panel button {
+      width: 80%;
+      margin: 8px auto;
+      display: block;
+    }
+
+    .message { text-align: center; font-size: 0.9em; color: #e17055; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div class="container" id="login-panel">
+    <div class="header">ChatCommit</div>
+    <label for="login-email">Email</label>
+    <input id="login-email" type="text" placeholder="you@example.com" />
+    <label for="login-password">Password</label>
+    <input id="login-password" type="password" placeholder="••••••••" />
+    <button id="login-submit" class="primary">🔐 Log In</button>
+    <p id="login-status" class="message"></p>
+<label style="color: #BF00FF; font-family: Tahoma, sans-serif;">
+  First Time? We value your privacy and use industry best practices to protect your data. All data is stored in the cloud. Please register Here:
+  <a href="https://chat-commit.vercel.app/register"
+     style="color: #BF00CF; text-decoration: underline;"
+     target="_blank"
+     rel="noopener">
+    https://chat-commit.vercel.app/register
+  </a>
+</label>
+
+
+  </div>
+
+  <!-- MAIN -->
+  <div class="container" id="main-panel" style="display:none;">
+    <!-- Logo -->
+    <img src="icon.png" class="logo" alt="ChatCommit Logo" />
+
+    <div class="header">ChatCommit</div>
+    <button id="refresh-chat" class="blue">🔄 Refresh</button>
+
+    <label for="branch-select">Branch</label>
+    <select id="branch-select"></select>
+    <div class="button-group">
+      <button id="create-branch" class="green">➕ New Branch</button>
+      <button id="view-branches" class="blue">📂 View Branches</button>
+    </div>
+
+    <label for="message-input">Commit Message</label>
+    <textarea id="message-input" rows="3" placeholder="Describe your changes"></textarea>
+
+    <label for="tag-input">Tag (optional)</label>
+    <input id="tag-input" type="text" placeholder="e.g. UI‑fix" />
+
+    <button id="commit-btn" class="primary">💾 Commit</button>
+
+    <label>Context</label>
+    <div id="context-container">
+      <table id="context-table"></table>
+    </div>
+    <button id="copy-context" class="purple">📋 Copy Context</button>
+
+    <div class="button-group">
+      <button id="merge-btn" class="green">🔀 Merge</button>
+      <button id="rollback-btn" class="green">⏪ Rollback</button>
+      <button id="timeline-btn" class="blue">🕒 Timeline</button>
+      <button id="settings-btn" class="blue">⚙️ Settings</button>
+      <button id="logout-btn" class="red">🚪 Log Out</button>
+    </div>
+
+    <p id="status-message" class="message"></p>
+  </div>
+
+  <!-- MERGE PANEL -->
+  <div id="merge-panel">
+    <div class="header">Merge Branches</div>
+    <label for="merge-source">Source</label>
+    <select id="merge-source"></select>
+    <label for="merge-target">Target</label>
+    <select id="merge-target"></select>
+    <button id="execute-merge" class="primary">✅ Confirm</button>
+    <button id="cancel-merge" class="blue">⬅️ Cancel</button>
+    <p id="merge-status" class="message"></p>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="container" id="settings-panel" style="display:none;">
+    <div class="header">Settings</div>
+    <label for="openai-key">OpenAI Key</label>
+    <input id="openai-key" type="text" placeholder="sk‑…" />
+    <label for="backend-url">Backend URL</label>
+    <input id="backend-url" type="text" placeholder="https://chatcommit.fly.dev" />
+    <label for="repo-hook">Repo Hook</label>
+    <input id="repo-hook" type="text" placeholder="(optional)" />
+    <button id="save-settings" class="green">💾 Save</button>
+    <button id="back-btn" class="blue">⬅️ Back</button>
+  </div>
+
+  <script src="popup.js" defer></script>
+</body>
+</html>
