@@ -12,7 +12,10 @@ from ..schemas import (
     UserRegisterResponse,
     UserActivate,
     UserActivateResponse,
+    UserLogin,
+    TokenResponse,
 )
+from ..auth import create_access_token
 
 # for sending email
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
@@ -69,20 +72,15 @@ async def register_user(
     db.refresh(user)
 
     # 3) activate & subscribe immediately
-
-    user.subscribed                    = True
-    user.date_subscribed               = datetime.utcnow()
-    user.date_subscription_expires     = datetime.utcnow() + timedelta(days=365)
+    user.subscribed                = True
+    user.date_subscribed           = datetime.utcnow()
+    user.date_subscription_expires = datetime.utcnow() + timedelta(days=365)
     db.commit()
 
     # 4) send activation link in background
     background_tasks.add_task(send_activation_email, payload.email, token)
 
-    # 5) redirect to subscription page (commented out per request)
-    # subscription_url = f"{os.getenv('FRONTEND_URL')}/subscription"
-    # return RedirectResponse(url=subscription_url, status_code=status.HTTP_303_SEE_OTHER)
-
-    # 6) return the newly created user
+    # 5) return the newly created user
     return UserRegisterResponse.from_orm(user)
 
 @router.post("/activate", response_model=UserActivateResponse)
@@ -100,3 +98,19 @@ def activate_user(
     user.token = ""
     db.commit()
     return {"message": "Account activated! You may now log in."}
+
+@router.post("/login", response_model=TokenResponse)
+def login_user(
+    payload: UserLogin,
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter_by(email=payload.email).first()
+    if not user or not pwd_ctx.verify(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(subject=user.id)
+    return {"access_token": access_token, "token_type": "bearer"}
