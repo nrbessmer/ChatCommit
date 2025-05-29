@@ -32,14 +32,14 @@ export default function ConfirmationPage() {
           </li>
           <li>
             Extension Store:{' '}
-            <a
-              href="https://chrome.google.com/webstore/detail/<YOUR-EXTENSION-ID>"
-              target="_blank"
-              rel="noopener"
-              className="text-blue-400 hover:underline"
-            >
-              Install from Chrome Web Store
-            </a>
+          <a
+            href="https://chromewebstore.google.com/detail/chatcommit/dhefohpdnmkhiceflikfkjajbfmplflp?authuser=0&hl=en"
+            target="_blank"
+            rel="noopener"
+            className="text-blue-400 hover:underline"
+          >
+            Install from Chrome Web Store
+          </a>
           </li>
         </ul>
       </div>
