@@ -24,7 +24,8 @@ export default function LoginPage() {
       localStorage.setItem('auth_token_type', token_type)
 
       // redirect once we have a valid token
-      router.push('/subscription')
+      // subscription flow is disabled, go to home/dashboard instead
+      router.push('/')
     } catch (err: any) {
       console.error('Login error:', err)
       setError(
