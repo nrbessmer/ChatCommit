@@ -69,7 +69,7 @@ async def register_user(
     db.refresh(user)
 
     # 3) activate & subscribe immediately
-    user.activated                     = True
+
     user.subscribed                    = True
     user.date_subscribed               = datetime.utcnow()
     user.date_subscription_expires     = datetime.utcnow() + timedelta(days=365)
