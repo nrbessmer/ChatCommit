@@ -38,7 +38,7 @@ export default function RegisterPage() {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-gray-800 text-white rounded">
-      <h1 className="text-2xl mb-4">Create your account</h1>
+      <h1 className="text-2xl mb-4">Sign Up! Your ChatGPT commits live in a hardened, SOC-2 compliant backend, encrypted in transit and at rest.</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="text-red-400">{error}</p>}
 
