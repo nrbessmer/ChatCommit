@@ -102,7 +102,7 @@ export default function RegisterPage() {
           disabled={loading}
           className="w-full bg-blue-600 hover:bg-blue-700 py-2 rounded"
         >
-          {loading ? 'Registering…' : 'Register'}
+          {loading ? 'Registering…' : 'Sign Up'}
         </button>
       </form>
     </div>
